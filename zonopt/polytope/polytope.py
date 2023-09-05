@@ -63,7 +63,7 @@ class Polytope:
         else:
             self._hull = hull
 
-    @peroperty
+    @property
     def points(self):
         return self._hull.points
 
