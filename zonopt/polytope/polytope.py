@@ -11,10 +11,14 @@ class Hyperplane:
     def __init__(self, a, c):
         self.a = np.array(a)
         self.c = c
+        self.a = self.a / np.linalg.norm(a)
+        self.c = self.c / np.linalg.norm(a)
 
     def __eq__(self, other):
         if isinstance(other, Hyperplane):
-            return almost_equal(self.a, other.a) and almost_equal(self.c, other.c)
+            e1 = almost_equal(self.a, other.a) and almost_equal(self.c, other.c)
+            e2 = almost_equal(self.a, -other.a) and almost_equal(self.c, -other.c)
+            return e1 or e2
         return False
 
     def contains(self, x):
@@ -30,10 +34,14 @@ class Halfspace:
         self.boundary = Hyperplane(a, c)
         self.a = np.array(a)
         self.c = c
+        self.a = self.a / np.linalg.norm(a)
+        self.c = self.c / np.linalg.norm(a)
 
     def __eq__(self, other):
         if isinstance(other, Halfspace):
-            return almost_equal(self.a, other.a) and almost_equal(self.c, other.c)
+            e1 = almost_equal(self.a, other.a) and almost_equal(self.c, other.c)
+            e2 = almost_equal(self.a, -other.a) and almost_equal(self.c, -other.c)
+            return e1 or e2
         return False
 
     def contains(self, x):
@@ -68,6 +76,8 @@ class Polytope:
         else:
             self._hull = hull
 
+        self._halfspaces = None
+
     @classmethod
     def random(self, num_points: int, dimension: int, scale=1):
         """
@@ -88,8 +98,10 @@ class Polytope:
 
     @property
     def halfspaces(self):
-        inequalities = [e for e in np.unique(self._hull.equations, axis=0)]
-        return [Halfspace(eq[:-1], -eq[-1]) for eq in inequalities]
+        if self._halfspaces is None:
+            inequalities = [e for e in np.unique(self._hull.equations, axis=0)]
+            self._halfspaces = [Halfspace(eq[:-1], -eq[-1]) for eq in inequalities]
+        return self._halfspaces
 
     def __mul__(self, alpha):
         """Multiply by scalar"""

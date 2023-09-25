@@ -44,11 +44,11 @@ def is_centrally_symmetric(points: np.ndarray):
     Check if a collection of points is centrally symmetric.
     """
 
-    barycenter = np.sum(vertices, axis=0) / len(vertices)
-    for pt1 in vertices:
+    barycenter = np.sum(points, axis=0) / len(points)
+    for pt1 in points:
         reflected = 2 * barycenter - pt1
         found_reflection = False
-        for pt2 in vertices:
+        for pt2 in points:
             if almost_equal(pt1, pt2):
                 found_reflection = True
                 break
