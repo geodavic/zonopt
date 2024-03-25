@@ -1,5 +1,5 @@
 import numpy as np
-from zonopt.polytope.tolerance import almost_equal, _log_global_epsilon
+from zonopt.polytope.comparisons import almost_equal
 from zonopt.polytope.errors import GeometryError
 from scipy.spatial import ConvexHull
 from itertools import combinations

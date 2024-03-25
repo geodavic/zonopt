@@ -1,7 +1,7 @@
 import numpy as np
 from typing import List, Union
 from scipy.spatial import ConvexHull
-from zonopt.polytope.tolerance import almost_equal
+from zonopt.polytope.comparisons import almost_equal
 from zonopt.polytope.utils import is_centrally_symmetric
 
 

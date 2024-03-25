@@ -1,10 +1,6 @@
 import numpy as np
+from zonopt import global_config as config
 import math
-
-_global_epsilon = 1e-8
-_comparison_norm = 2
-_log_global_epsilon = -int(math.log10(_global_epsilon))
-
 
 def almost_equal(o1: any, o2: any):
     """
@@ -21,10 +17,10 @@ def almost_equal(o1: any, o2: any):
         raise
 
     if isinstance(x, float) or isinstance(x, np.floating):
-        return np.abs(x - y) < _global_epsilon
+        return np.abs(x - y) < config.comparison_epsilon
     if isinstance(y, int) or isinstance(x, np.integer):
         return x == y
     elif type(x) == np.ndarray:
-        return np.linalg.norm(x - y, _comparison_norm) < _global_epsilon
+        return np.linalg.norm(x - y, config.comparison_metric) < config.comparison_epsilon
     else:
         raise TypeError(f"Unsupported type '{type(o1)}' for comparison")
