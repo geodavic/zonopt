@@ -5,9 +5,9 @@ from scipy.spatial import ConvexHull
 from itertools import combinations
 
 
-def subsets(arr) -> list:
+def subsets(arr):
     subsets = []
-    [subsets.extend(list(combinations(arr, n))) for n in range(len(arr))]
+    [subsets.extend(list(combinations(arr, n))) for n in range(len(arr) + 1)]
     return subsets
 
 
@@ -52,4 +52,6 @@ def is_centrally_symmetric(points: np.ndarray):
             if almost_equal(pt1, pt2):
                 found_reflection = True
                 break
-    return found_reflection
+        if not found_reflection:
+            return False
+    return True

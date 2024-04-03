@@ -11,20 +11,25 @@ class Hyperplane:
     def __init__(self, a, c):
         self.a = np.array(a)
         self.c = c
-        self.a = self.a / np.linalg.norm(a)
-        self.c = self.c / np.linalg.norm(a)
+        self._a = self.a / np.linalg.norm(a)
+        self._c = self.c / np.linalg.norm(a)
 
     def __eq__(self, other):
         if isinstance(other, Hyperplane):
-            e1 = almost_equal(self.a, other.a) and almost_equal(self.c, other.c)
-            e2 = almost_equal(self.a, -other.a) and almost_equal(self.c, -other.c)
+            e1 = almost_equal(self._a, other._a) and almost_equal(self._c, other._c)
+            e2 = almost_equal(self._a, -other._a) and almost_equal(self._c, -other._c)
             return e1 or e2
         return False
 
     def contains(self, x):
-        if almost_equal(self.a @ x, self.c):
+        if almost_equal(self._a @ x, self._c):
             return True
         return False
+
+    def __repr__(self):
+        a = np.round(self.a, 3)
+        c = np.round(self.c, 3)
+        return f"Hyperplane({a}•x = {c})"
 
 
 class Halfspace:
@@ -34,20 +39,25 @@ class Halfspace:
         self.boundary = Hyperplane(a, c)
         self.a = np.array(a)
         self.c = c
-        self.a = self.a / np.linalg.norm(a)
-        self.c = self.c / np.linalg.norm(a)
+        self._a = self.a / np.linalg.norm(a)
+        self._c = self.c / np.linalg.norm(a)
 
     def __eq__(self, other):
         if isinstance(other, Halfspace):
-            e1 = almost_equal(self.a, other.a) and almost_equal(self.c, other.c)
-            e2 = almost_equal(self.a, -other.a) and almost_equal(self.c, -other.c)
+            e1 = almost_equal(self._a, other._a) and almost_equal(self._c, other._c)
+            e2 = almost_equal(self._a, -other._a) and almost_equal(self._c, -other._c)
             return e1 or e2
         return False
 
     def contains(self, x):
-        if self.a @ x - self.c <= 0:
+        if self._a @ x - self._c <= 0:
             return True
         return False
+
+    def __repr__(self):
+        a = np.round(self.a, 3)
+        c = np.round(self.c, 3)
+        return f"Hyperplane({a}•x =< {c})"
 
 
 class Polytope:

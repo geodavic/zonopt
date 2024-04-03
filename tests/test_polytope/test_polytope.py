@@ -5,8 +5,8 @@ import unittest
 
 class TestPolytope(unittest.TestCase):
     def setUp(self):
-        self.hyp = Hyperplane([1, 1], -1)
-        self.half = Halfspace([1, 1], -1)
+        self.hyp = Hyperplane([1, 1], 1)
+        self.half = Halfspace([1, 1], 1)
         self.P1 = Polytope(points=[[1, 0], [0, 1], [-1, 0], [0, -1]])
         self.P2 = Polytope(points=[[0, 0], [2, 0], [1, 2]])
         self.P3 = Polytope(
