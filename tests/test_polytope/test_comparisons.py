@@ -9,7 +9,7 @@ class TestComparisons(unittest.TestCase):
         global_config.comparison_epsilon = 0.01
 
     def test_int(self):
-        a, b = 1, 1
+        a, b = 1, 2
         c, d = 3, 3
 
         self.assertFalse(almost_equal(a, b))
