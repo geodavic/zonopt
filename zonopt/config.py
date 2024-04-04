@@ -48,6 +48,13 @@ class OptimizationConfig(BaseModel):
             )
         return v
 
+    @field_validator("metric")
+    def supported_metric(cls, v, info):
+        if v != 2:
+            raise ValueError(
+                f"Only l^2 metric is currently supported for optimization."
+            )
+
     @field_validator("comparison_epsilon")
     def must_be_positive(cls, v):
         if v <= 0:

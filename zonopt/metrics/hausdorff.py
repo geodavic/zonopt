@@ -178,3 +178,5 @@ def distance_to_hyperplane(x: np.ndarray, H: Hyperplane, metric: int = 2):
     else:
         raise NotImplementedError("Only L^2 metrics supported.")
     return dist
+
+
