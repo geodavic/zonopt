@@ -2,6 +2,7 @@ from scipy.optimize import linprog
 from qpsolvers import solve_qp
 import numpy as np
 import scipy as sp
+import warnings
 from zonopt.config import global_config
 from zonopt.polytope import Polytope, UnitBall, Hyperplane
 from zonopt.polytope.utils import express_point_as_convex_sum
@@ -58,19 +59,22 @@ def _distance_to_polytope_l2(x: np.array, P: Polytope):
     b = np.array([0] * len(x) + [1], np.float64)
     lb = np.array([-np.inf] * len(x) + [0] * len(P_vertices), np.float64)
     ub = np.array([np.inf] * (len(x) + len(P_vertices)), np.float64)
-    sol = solve_qp(
-        Q,
-        q,
-        A=A,
-        b=b,
-        lb=lb,
-        ub=ub,
-        solver=global_config.qp_config.solver,
-        polish=global_config.qp_config.polish,
-        eps_abs=global_config.qp_config.eps_abs,
-        eps_rel=global_config.qp_config.eps_rel,
-        max_iter=global_config.qp_config.max_iter,
-    )
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings('ignore', module=r'qpsolvers*')
+        sol = solve_qp(
+            Q,
+            q,
+            A=A,
+            b=b,
+            lb=lb,
+            ub=ub,
+            solver=global_config.qp_config.solver,
+            polish=global_config.qp_config.polish,
+            eps_abs=global_config.qp_config.eps_abs,
+            eps_rel=global_config.qp_config.eps_rel,
+            max_iter=global_config.qp_config.max_iter,
+        )
 
     if sol is None:
         raise HausdorffError("Program for l2 distance did not succeed.")
