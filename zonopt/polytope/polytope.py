@@ -124,9 +124,6 @@ class Polytope:
         """Same as __mul__"""
         return self.__mul__(alpha)
 
-    def contains(self, x):
-        return all([H.contains(x) for H in self.halfspaces])
-
     @property
     def dimension(self):
         return len(self.points[0])
