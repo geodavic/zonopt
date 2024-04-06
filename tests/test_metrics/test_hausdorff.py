@@ -1,5 +1,5 @@
-from zonopt.metrics import distance_to_polytope, distance_to_hyperplane
-from zonopt.polytope import UnitBall, Polytope
+from zonopt.metrics import distance_to_polytope, distance_to_hyperplane, hausdorff_distance
+from zonopt.polytope import UnitBall, Polytope, Cube
 import numpy as np
 import unittest
 
@@ -54,3 +54,23 @@ class TestDistanceToPolytopeL2(unittest.TestCase):
         dist, proj, _ = self.distance_to_polytope(y, self.octagon)
         self.assertAlmostEqual(dist, 0)
         self.assertTrue(np.allclose(proj, y))
+
+
+class TestHausdorffDistance(unittest.TestCase):
+    """
+    TODO: this could use some more cases.
+    """
+    def setUp(self):
+        self.cube = UnitBall(2,np.infty)
+
+        rot_angle = np.pi/4
+        rot = np.array([[np.cos(rot_angle), -np.sin(rot_angle)],[np.sin(rot_angle), np.cos(rot_angle)]])
+        self.cube_rotated = Polytope(points=[rot@p for p in self.cube.vertices])
+
+        self.thresh = 0.0000001
+
+    def test_multiplicity(self):
+        dist, p, q, mult = hausdorff_distance(self.cube,self.cube_rotated, threshold=self.thresh)
+
+        self.assertAlmostEqual(dist, np.sqrt(2)-1)
+        self.assertEqual(mult, 8)

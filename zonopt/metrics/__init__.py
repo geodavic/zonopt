@@ -1,1 +1,1 @@
-from .hausdorff import distance_to_polytope, distance_to_hyperplane
+from .hausdorff import distance_to_polytope, distance_to_hyperplane, hausdorff_distance

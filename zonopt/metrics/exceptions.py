@@ -1,0 +1,2 @@
+class HausdorffError(Exception):
+    pass

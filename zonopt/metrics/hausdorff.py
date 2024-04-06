@@ -4,6 +4,8 @@ import numpy as np
 import scipy as sp
 from zonopt.config import global_config
 from zonopt.polytope import Polytope, UnitBall, Hyperplane
+from zonopt.polytope.utils import express_point_as_convex_sum
+from zonopt.metrics.exceptions import HausdorffError
 
 
 def _distance_to_polytope_l2(x: np.array, P: Polytope):
@@ -30,10 +32,20 @@ def _distance_to_polytope_l2(x: np.array, P: Polytope):
     coeffs: np.ndarray
         The coefficients of the sum representing p as a
         convex sum of vertices of P.
+
+    TODO: check if x is in P and return 0 early
+    handle no solution better
     """
 
     if not isinstance(x, np.ndarray) or x.dtype != np.float64:
         x = np.array(x, np.float64)
+
+    if P.contains(x):
+        coeffs = express_point_as_convex_sum(x,P.vertices)
+        if coeffs is not None:
+            return 0, x, coeffs
+        else:
+            raise HausdorffError("Program for l2 distance did not succeed.")
 
     P_vertices = P.vertices
 
@@ -59,6 +71,10 @@ def _distance_to_polytope_l2(x: np.array, P: Polytope):
         eps_rel=global_config.qp_config.eps_rel,
         max_iter=global_config.qp_config.max_iter,
     )
+
+    if sol is None:
+        raise HausdorffError("Program for l2 distance did not succeed.")
+
     proj = sol[: len(x)]
     coeffs = sol[len(x) :]
     dist = np.linalg.norm(proj - x)
@@ -180,3 +196,69 @@ def distance_to_hyperplane(x: np.ndarray, H: Hyperplane, metric: int = 2):
     return dist
 
 
+def hausdorff_distance(P: Polytope, Q: Polytope, threshold: float=1.0, metric: int=2):
+    """
+    Compute the Hausdorff distance between P and Q:
+
+    d(P,Q) = max( min_{x\in Q}d(x,P), \min_{y\in P}d(y,Q) )
+
+    Returns the distance, a pair of points p \in P, q \in Q where the distance
+    is achieved and the multiplicity (how many pairs achieve this distance up to a specified
+    tolerance).
+
+    Parameters:
+    ----------
+    P: Polytope
+        Input polytope
+    Q: Polytope
+        Input polyotpe
+    threshold: float
+        Threshold to determine the multiplicity (see above).
+
+    Returns:
+    -------
+    dist: float 
+        The Hausdorff distance d(P,Q)
+    p: np.ndarray
+        A point in P and
+    q: np.ndarray
+        A point in Q such that (p,q) achieves the Hausdorff distance.
+    mult: int
+        The multiplicity
+    """
+
+    distances = []
+
+    distP = -np.inf
+    qP = None
+    qQ = None
+    for p in P.vertices:
+        dist, projp, _ = distance_to_polytope(p,Q,metric=metric)
+        distances += [dist]
+        if dist > distP:
+            distP = dist
+            qP = p
+            qQ = projp
+
+    distQ = -np.inf
+    pQ = None
+    pP = None
+    for q in Q.vertices:
+        dist, projq, _ = distance_to_polytope(q,P,metric=metric)
+        distances += [dist]
+        if dist > distQ:
+            distQ = dist
+            pQ = q
+            pP = projq
+
+    mult = 0
+    distances = reversed(sorted(distances))
+    for d in distances:
+        if threshold * max(distP, distQ) > d:
+            break
+        mult += 1
+    
+    if distP > distQ:
+        return (distP, qP, qQ, mult)
+    else:
+        return (distQ, pP, pQ, mult)
