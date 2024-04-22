@@ -33,9 +33,6 @@ def _distance_to_polytope_l2(x: np.array, P: Polytope):
     coeffs: np.ndarray
         The coefficients of the sum representing p as a
         convex sum of vertices of P.
-
-    TODO: check if x is in P and return 0 early
-    handle no solution better
     """
 
     if not isinstance(x, np.ndarray) or x.dtype != np.float64:
