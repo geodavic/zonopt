@@ -1,11 +1,12 @@
 import numpy as np
-from typing import Union, List
+from typing import Union, List, Any
+import torch
 from scipy.spatial import ConvexHull
 from zonopt.polytope import Polytope
-from zonopt.polytope.utils import (
-    affine_from_vertices,
-    vertices_from_affine,
-)
+from zonopt.polytope.utils import hull_from_affine, translate_points
+
+GeneratorType = Union[np.ndarray, torch.Tensor, List[List[float]]]
+TranslationType = Union[np.ndarray, torch.Tensor, List[float]]
 
 
 class Zonotope(Polytope):
@@ -18,43 +19,67 @@ class Zonotope(Polytope):
         The generators of the zonotope.
     translation: np.ndarray
         The translation of the zonotope.
-    points: np.ndarray
-        A set of point whose convex hull is a zonotope.
     """
 
-    def __init__(
-        self,
-        generators: Union[np.ndarray, List[List[float]]] = None,
-        translation: Union[np.ndarray, List[float]] = None,
-        points: Union[np.ndarray, List[List[float]]] = None,
-    ):
-        self.translation = translation
-        if generators is not None:
-            if self.translation is None:
-                self.translation = np.zeros(len(generators[0]))
-            self.generators = np.array(generators)
-            _vert = vertices_from_affine(self.generators, self.translation)
-        elif points is not None:
-            _vert = Polytope(points=points).vertices
-            self.generators, self.translation = affine_from_vertices(_vert)
-        else:
-            raise ValueError(
-                "Must pass either points or generators that form the Zonotope"
-            )
+    def __init__(self, generators: GeneratorType, translation: TranslationType = None):
+        if translation is None:
+            translation = np.zeros(len(generators[0]))
 
-        hull = ConvexHull(_vert)
+        self.validate_generators(generators)
+        self.validate_translation(translation)
+
+        self._generators = generators
+        self._translation = translation
+        hull = hull_from_affine(generators, translation)
+
         super().__init__(hull=hull)
 
-    def __mul__(self, a):
-        """Override super class"""
-        new_generators = []
-        for g in self.generators:
-            new_generators.append(a * g)
-        return self.__class__(generators=new_generators)
+    def validate_generators(self, generators: Any):
+        validationError = ValueError(f"Must pass type `{GeneratorType}` for generators")
+        if isinstance(generators, (torch.Tensor, np.ndarray)):
+            if len(generators.shape) != 2:
+                raise ValueError(
+                    "Generators must be specified as a two dimensional array"
+                )
+        elif not (
+            isinstance(generators, List)
+            and isinstance(generators[0], List)
+            and isinstance(generators[0][0], float)
+        ):
+            raise validationError
 
-    def __rmul__(self, a):
-        """Same as __mul__"""
-        return self.__mul__(a)
+    def validate_translation(self, translation: Any):
+        validationError = ValueError(
+            f"Must pass type `{TranslationType}` for translation"
+        )
+        if isinstance(translation, (torch.Tensor, np.ndarray)):
+            if len(translation.shape) != 1:
+                raise ValueError(
+                    "Translations must be specified as a one dimensional array"
+                )
+        elif not (isinstance(translation, List) and isinstance(translation[0], float)):
+            raise validationError
+
+    @property
+    def translation(self):
+        return self._translation
+
+    @property
+    def generators(self):
+        return self._generators
+
+    @generators.setter
+    def generators(self, new_generators: GeneratorType):
+        self.validate_generators(new_generators)
+        self._generators = new_generators
+        self._hull = hull_from_affine(new_generators, self.translation)
+
+    @translation.setter
+    def translation(self, new_translation: TranslationType):
+        self.validate_translation(new_translation)
+        self._translation = new_translation
+        _vert = translate_points(self.vertices, new_translation)
+        self._hull = ConvexHull(_vert)
 
     @property
     def rank(self):
@@ -62,7 +87,7 @@ class Zonotope(Polytope):
 
     @classmethod
     def random(
-        self,
+        cls,
         rank: int,
         dimension: int,
         scale=None,
@@ -99,4 +124,4 @@ class Zonotope(Polytope):
         generators *= scale
         translation *= scale
 
-        return self(generators=generators, translation=translation)
+        return cls(generators=generators, translation=translation)

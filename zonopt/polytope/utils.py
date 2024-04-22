@@ -1,9 +1,11 @@
 import numpy as np
+from typing import Any
 from zonopt.polytope.comparisons import almost_equal
 from zonopt.polytope.exceptions import GeometryError
 from scipy.spatial import ConvexHull
 from scipy.optimize import linprog
 from itertools import combinations
+import torch
 
 
 def subsets(arr):
@@ -26,18 +28,35 @@ def affine_from_vertices(vertices: np.ndarray):
     )
 
 
-def vertices_from_affine(generators: np.ndarray, translation: np.ndarray):
+def hull_from_affine(generators: Any, translation: Any):
     """
-    Get the vertices of a zonotope given by an affine map.
+    Get the convex hull of a zonotope given by an affine map.
 
     TODO: make this more memory efficient, not generating all cubical vertices.
     """
-    cubical_vertices = [np.zeros(len(generators[0]))]
-    for subset in subsets(generators):
-        cubical_vertices.append((np.sum(subset, axis=0) + translation))
-    cubical_vertices = np.array(cubical_vertices)
+    if isinstance(translation, torch.Tensor):
+        translation_ = translation.detach().numpy()
+    else:
+        translation_ = np.array(translation)
 
-    return cubical_vertices[ConvexHull(cubical_vertices).vertices]
+    if isinstance(generators, torch.Tensor):
+        generators_ = generators.detach().numpy()
+    else:
+        generators_ = np.array(generators)
+
+    cubical_vertices = [np.zeros(len(generators_[0])) + translation_]
+    for subset in subsets(generators_)[1:]:
+        cubical_vertices.append((np.sum(subset, axis=0) + translation_))
+    cubical_vertices = np.array(cubical_vertices)
+    return ConvexHull(cubical_vertices)
+
+
+def translate_points(points: np.ndarray, translation: Any):
+    if isinstance(translation, torch.Tensor):
+        translation_ = translation.detach().numpy()
+    else:
+        translation_ = np.array(translation)
+    return points + translation_
 
 
 def is_centrally_symmetric(points: np.ndarray):
@@ -57,6 +76,7 @@ def is_centrally_symmetric(points: np.ndarray):
             return False
     return True
 
+
 def express_point_as_convex_sum(x: np.ndarray, points: np.ndarray):
     """
     Express x as a convex sum of the elements of `points`.
@@ -68,12 +88,12 @@ def express_point_as_convex_sum(x: np.ndarray, points: np.ndarray):
     If no solution exists, return None.
     """
 
-    Aeq = np.vstack((points.T, [1]*len(points)))
-    beq = np.hstack((x,1))
+    Aeq = np.vstack((points.T, [1] * len(points)))
+    beq = np.hstack((x, 1))
     c = np.zeros(len(points))
 
-    lp = linprog(c,A_eq=Aeq,b_eq=beq)
-    
+    lp = linprog(c, A_eq=Aeq, b_eq=beq)
+
     if lp.status != 0:
         return None
 
