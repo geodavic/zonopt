@@ -24,6 +24,8 @@ class Zonotope(Polytope):
     def __init__(self, generators: GeneratorType, translation: TranslationType = None):
         if translation is None:
             translation = np.zeros(len(generators[0]))
+            if isinstance(generators, torch.Tensor):
+                translation = torch.tensor(translation)
 
         self.validate_generators(generators)
         self.validate_translation(translation)

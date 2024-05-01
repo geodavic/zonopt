@@ -1,6 +1,7 @@
 import numpy as np
 from zonopt.polytope import Polytope, Zonotope
 from zonopt.utils import all_subsets
+import torch
 
 
 def UnitBall(d, p):
@@ -26,13 +27,22 @@ def UnitBall(d, p):
     return Polytope(points=vertices)
 
 
-def Cube(d, as_zonotope=False):
+def Cube(d, as_zonotope=False, use_torch=False):
     """
-    Return the unit cube in R^d. If as_zonotope=True,
-    return as a Zonotope object rather than a Polytope.
+    Return the unit cube in R^d. 
+
+    Parameters:
+    -----------
+    as_zonotope: bool
+        Return result as a zonotope.
+    torch: bool
+        If returning as a zonotope, return
+        a zonotope with torch generators.
     """
     if as_zonotope:
         generators = np.eye(d)
+        if use_torch:
+            generators = torch.tensor(generators)
         return Zonotope(generators=generators)
     else:
         vertices = np.array(all_subsets(d))

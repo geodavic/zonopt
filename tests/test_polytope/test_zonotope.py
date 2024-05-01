@@ -1,5 +1,6 @@
 from zonopt.polytope import Polytope, Hyperplane, Halfspace, Cube
 import numpy as np
+import torch
 import unittest
 
 
@@ -9,6 +10,8 @@ class TestZonotope(unittest.TestCase):
         self.C2 = Cube(3, as_zonotope=True)
         self.C3 = Cube(3, as_zonotope=True)
         self.C4 = Cube(3, as_zonotope=True)
+        self.C5 = Cube(3, as_zonotope=True, use_torch=True)
+        self.C6 = Cube(3, as_zonotope=True, use_torch=True)
 
     def test_change_generators(self):
         delta = np.array([1, 1, 1])
@@ -36,3 +39,19 @@ class TestZonotope(unittest.TestCase):
         self.C4.generators *= 2
 
         np.testing.assert_almost_equal(self.C3.vertices, self.C4.vertices)
+
+    def test_torch_change_generators(self):
+        delta = torch.tensor([1, 1, 1], dtype=torch.float64)
+        self.C5.generators += delta
+
+        torch.testing.assert_close(
+            self.C5.generators, torch.tensor([[2, 1, 1], [1, 2, 1], [1, 1, 2.0]],dtype=torch.float64)
+        )
+        np.testing.assert_almost_equal(self.C5.vertices[-1], np.array([4, 4, 4]))
+
+    def test_torch_change_translation(self):
+        delta = torch.tensor([1, 1, 1], dtype=torch.float64)
+        self.C6.translation += delta
+
+        torch.testing.assert_close(self.C6.translation, delta)
+        np.testing.assert_almost_equal(self.C6.vertices[-1], np.array([2, 2, 2]))
