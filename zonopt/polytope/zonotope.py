@@ -40,7 +40,7 @@ def _express_as_subset_sum(x: np.ndarray, generators: List[np.ndarray], _prev: i
 
 class Zonotope(Polytope):
     """
-    A zonotope in V representation or in generator-translation form.
+    A zonotope in generator-translation form.
 
     Parameters
     ----------
