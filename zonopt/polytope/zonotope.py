@@ -13,7 +13,8 @@ TranslationType = Union[np.ndarray, torch.Tensor, List[float]]
 def express_as_subset_sum(x: np.ndarray, generators: List[np.ndarray]):
     """
     Express x as a sum of a subset of generators. Returns
-    boolean and indices of generators adding up to x.
+    boolean and binary list corresponding to which generators
+    add up to x.
     """
     is_sum, gens = _express_as_subset_sum(x, generators)
     return is_sum, [i in gens for i in range(len(generators))]
