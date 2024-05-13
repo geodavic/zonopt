@@ -65,6 +65,8 @@ class TestZonotope(unittest.TestCase):
         for _ in range(5):
             subset = np.random.randint(0, 2, 5)
             target = sum([g for i, g in enumerate(Z.generators) if subset[i]])
+            if isinstance(target, int):
+                target = np.zeros(5)
             is_sum, coeffs = express_as_subset_sum(target, [g for g in Z.generators])
             self.assertTrue(is_sum)
             np.testing.assert_equal(subset, np.array(coeffs))
