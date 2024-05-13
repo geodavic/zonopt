@@ -1,6 +1,6 @@
 import numpy as np
 from zonopt.polytope import Polytope, Zonotope
-from zonopt.utils import all_subsets
+from zonopt.polytope.utils import binary_lists
 import torch
 
 
@@ -20,7 +20,7 @@ def UnitBall(d, p):
             vertices.append(w)
         vertices = np.array(vertices)
     elif p == np.infty:
-        vertices = 2 * np.array(all_subsets(d)) - 1
+        vertices = 2 * np.array(binary_lists(d)) - 1
     else:
         raise NotImplementedError(f"l^p ball for p = {p} is not a polytope.")
 
@@ -45,5 +45,5 @@ def Cube(d, as_zonotope=False, use_torch=False):
             generators = torch.tensor(generators)
         return Zonotope(generators=generators)
     else:
-        vertices = np.array(all_subsets(d))
+        vertices = np.array(binary_lists(d))
         return Polytope(points=vertices)
