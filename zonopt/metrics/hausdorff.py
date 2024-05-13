@@ -39,7 +39,7 @@ def _distance_to_polytope_l2(x: np.array, P: Polytope):
         x = np.array(x, np.float64)
 
     if P.contains(x):
-        coeffs = express_point_as_convex_sum(x,P.vertices)
+        coeffs = express_point_as_convex_sum(x, P.vertices)
         if coeffs is not None:
             return 0, x, coeffs
         else:
@@ -58,7 +58,7 @@ def _distance_to_polytope_l2(x: np.array, P: Polytope):
     ub = np.array([np.inf] * (len(x) + len(P_vertices)), np.float64)
 
     with warnings.catch_warnings():
-        warnings.filterwarnings('ignore', module=r'qpsolvers*')
+        warnings.filterwarnings("ignore", module=r"qpsolvers*")
         sol = solve_qp(
             Q,
             q,
@@ -197,15 +197,17 @@ def distance_to_hyperplane(x: np.ndarray, H: Hyperplane, metric: int = 2):
     return dist
 
 
-def hausdorff_distance(P: Polytope, Q: Polytope, threshold: float=1.0, metric: int=2):
+def hausdorff_distance(
+    P: Polytope, Q: Polytope, threshold: float = 1.0, metric: int = 2
+):
     """
     Compute the Hausdorff distance between P and Q:
 
     d(P,Q) = max( min_{x\in Q}d(x,P), \min_{y\in P}d(y,Q) )
 
     Returns the distance, a pair of points p \in P, q \in Q where the distance
-    is achieved and the multiplicity (how many pairs achieve this distance up to a specified
-    tolerance).
+    is achieved and at which pairs of points that distance is achieved (within the
+    specified threshold)
 
     Parameters:
     ----------
@@ -218,48 +220,33 @@ def hausdorff_distance(P: Polytope, Q: Polytope, threshold: float=1.0, metric: i
 
     Returns:
     -------
-    dist: float 
+    dist: float
         The Hausdorff distance d(P,Q)
-    p: np.ndarray
-        A point in P and
-    q: np.ndarray
-        A point in Q such that (p,q) achieves the Hausdorff distance.
-    mult: int
-        The multiplicity
+    p: list[np.ndarray]
+        A list of points in P and
+    q: list[np.ndarray]
+        A list of points in Q such that each pair (p_i,q_i) achieves the Hausdorff distance
+        within the specified threshold.
     """
 
     distances = []
 
-    distP = -np.inf
-    qP = None
-    qQ = None
     for p in P.vertices:
-        dist, projp, _ = distance_to_polytope(p,Q,metric=metric)
-        distances += [dist]
-        if dist > distP:
-            distP = dist
-            qP = p
-            qQ = projp
+        dist, projp, _ = distance_to_polytope(p, Q, metric=metric)
+        distances += [[dist, p, projp]]
 
-    distQ = -np.inf
-    pQ = None
-    pP = None
     for q in Q.vertices:
-        dist, projq, _ = distance_to_polytope(q,P,metric=metric)
-        distances += [dist]
-        if dist > distQ:
-            distQ = dist
-            pQ = q
-            pP = projq
+        dist, projq, _ = distance_to_polytope(q, P, metric=metric)
+        distances += [[dist, q, projq]]
 
-    mult = 0
-    distances = reversed(sorted(distances))
-    for d in distances:
-        if threshold * max(distP, distQ) > d:
-            break
-        mult += 1
-    
-    if distP > distQ:
-        return (distP, qP, qQ, mult)
-    else:
-        return (distQ, pP, pQ, mult)
+    distances = sorted(distances, key=(lambda x: x[0]))
+    haus_dist = distances[0][0]
+
+    points_P = []
+    points_Q = []
+    for d, p, q in distances:
+        if threshold * haus_dist < d:
+            points_P += [p]
+            points_Q += [q]
+
+    return haus_dist, points_P, points_Q

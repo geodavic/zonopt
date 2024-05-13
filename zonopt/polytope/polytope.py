@@ -6,7 +6,9 @@ from zonopt.polytope.utils import is_centrally_symmetric
 
 
 class Hyperplane:
-    """A hyperplane of the form a \odot x - c == 0"""
+    """
+    A hyperplane of the form a \odot x - c == 0
+    """
 
     def __init__(self, a, c):
         self.a = np.array(a)
@@ -33,7 +35,9 @@ class Hyperplane:
 
 
 class Halfspace:
-    """A halfspace of the form a \dot x - c <= 0"""
+    """
+    A halfspace of the form a \dot x - c <= 0
+    """
 
     def __init__(self, a, c):
         self.boundary = Hyperplane(a, c)
@@ -114,14 +118,18 @@ class Polytope:
         return self._halfspaces
 
     def __mul__(self, alpha):
-        """Multiply by scalar"""
+        """
+        Multiply by scalar
+        """
         new_points = []
         for v in self.points:
             new_points.append(alpha * v)
         return self.__class__(points=new_points)
 
     def __rmul__(self, alpha):
-        """Same as __mul__"""
+        """
+        Same as __mul__
+        """
         return self.__mul__(alpha)
 
     @property
@@ -138,15 +146,25 @@ class Polytope:
     def is_centrally_symmetric(self):
         return is_centrally_symmetric(self.vertices)
 
+    def has_vertex(self, x: np.ndarray):
+        """
+        Return true if x is (almost) a vertex of P.
+        """
+        return any([almost_equal(np.linalg.norm(x - v), 0) for v in self.vertices])
+
     def contains(self, p: np.ndarray):
-        """Determine if the polytope contains p"""
+        """
+        Determine if the polytope contains p
+        """
         for H in self.halfspaces:
             if not H.contains(p):
                 return False
         return True
 
     def supporting_halfspaces(self, x):
-        """Return list of halfspaces whose boundary contains x"""
+        """
+        Return list of halfspaces whose boundary contains x
+        """
         halfspaces = []
         for H in self.halfspaces:
             if H.boundary.contains(x):

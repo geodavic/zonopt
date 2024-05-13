@@ -1,4 +1,5 @@
-from zonopt.polytope import Polytope, Hyperplane, Halfspace, Cube
+from zonopt.polytope import Polytope, Zonotope, Hyperplane, Halfspace, Cube
+from zonopt.polytope.zonotope import express_as_subset_sum
 import numpy as np
 import torch
 import unittest
@@ -6,52 +7,64 @@ import unittest
 
 class TestZonotope(unittest.TestCase):
     def setUp(self):
-        self.C1 = Cube(3, as_zonotope=True)
-        self.C2 = Cube(3, as_zonotope=True)
-        self.C3 = Cube(3, as_zonotope=True)
-        self.C4 = Cube(3, as_zonotope=True)
-        self.C5 = Cube(3, as_zonotope=True, use_torch=True)
-        self.C6 = Cube(3, as_zonotope=True, use_torch=True)
+        self.C = Cube(3, as_zonotope=True)
+        self.C_t = Cube(3, as_zonotope=True, use_torch=True)
 
     def test_change_generators(self):
         delta = np.array([1, 1, 1])
-        self.C1.generators += delta
+        C = self.C.copy()
+        C.generators += delta
 
         np.testing.assert_almost_equal(
-            self.C1.generators, np.array([[2, 1, 1], [1, 2, 1], [1, 1, 2]])
+            C.generators, np.array([[2, 1, 1], [1, 2, 1], [1, 1, 2]])
         )
-        np.testing.assert_almost_equal(self.C1.vertices[-1], np.array([4, 4, 4]))
+        np.testing.assert_almost_equal(C.vertices[-1], np.array([4, 4, 4]))
 
     def test_change_translation(self):
         delta = np.array([1, 1, 1])
-        self.C2.translation += delta
+        C = self.C.copy()
+        C.translation += delta
 
-        np.testing.assert_almost_equal(self.C2.translation, delta)
-        np.testing.assert_almost_equal(self.C2.vertices[-1], np.array([2, 2, 2]))
+        np.testing.assert_almost_equal(C.translation, delta)
+        np.testing.assert_almost_equal(C.vertices[-1], np.array([2, 2, 2]))
 
     def test_change_order_doesnt_matter(self):
         delta_t = np.array([1, 1, 1])
+        C = self.C.copy()
+        D = self.C.copy()
 
-        self.C3.generators *= 2
-        self.C3.translation += delta_t
+        C.generators *= 2
+        C.translation += delta_t
 
-        self.C4.translation += delta_t
-        self.C4.generators *= 2
+        D.translation += delta_t
+        D.generators *= 2
 
-        np.testing.assert_almost_equal(self.C3.vertices, self.C4.vertices)
+        np.testing.assert_almost_equal(C.vertices, D.vertices)
 
     def test_torch_change_generators(self):
         delta = torch.tensor([1, 1, 1], dtype=torch.float64)
-        self.C5.generators += delta
+        C = self.C_t.copy()
+        C.generators += delta
 
         torch.testing.assert_close(
-            self.C5.generators, torch.tensor([[2, 1, 1], [1, 2, 1], [1, 1, 2.0]],dtype=torch.float64)
+            C.generators,
+            torch.tensor([[2, 1, 1], [1, 2, 1], [1, 1, 2.0]], dtype=torch.float64),
         )
-        np.testing.assert_almost_equal(self.C5.vertices[-1], np.array([4, 4, 4]))
+        np.testing.assert_almost_equal(C.vertices[-1], np.array([4, 4, 4]))
 
     def test_torch_change_translation(self):
         delta = torch.tensor([1, 1, 1], dtype=torch.float64)
-        self.C6.translation += delta
+        C = self.C_t.copy()
+        C.translation += delta
 
-        torch.testing.assert_close(self.C6.translation, delta)
-        np.testing.assert_almost_equal(self.C6.vertices[-1], np.array([2, 2, 2]))
+        torch.testing.assert_close(C.translation, delta)
+        np.testing.assert_almost_equal(C.vertices[-1], np.array([2, 2, 2]))
+
+    def test_express_as_subset(self):
+        Z = Zonotope.random(5, 3)
+        for _ in range(5):
+            subset = np.random.randint(0, 2, 5)
+            target = sum([g for i, g in enumerate(Z.generators) if subset[i]])
+            is_sum, coeffs = express_as_subset_sum(target, [g for g in Z.generators])
+            self.assertTrue(is_sum)
+            np.testing.assert_equal(subset, np.array(coeffs))

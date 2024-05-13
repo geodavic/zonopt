@@ -29,7 +29,7 @@ def UnitBall(d, p):
 
 def Cube(d, as_zonotope=False, use_torch=False):
     """
-    Return the unit cube in R^d. 
+    Return the unit cube in R^d.
 
     Parameters:
     -----------
