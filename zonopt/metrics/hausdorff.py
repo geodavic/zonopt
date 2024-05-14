@@ -237,7 +237,7 @@ def hausdorff_distance(
 
     for q in Q.vertices:
         dist, projq, _ = distance_to_polytope(q, P, metric=metric)
-        distances += [[dist, q, projq]]
+        distances += [[dist, projq, q]]
 
     distances = sorted(distances, key=(lambda x: x[0]))
     haus_dist = distances[0][0]
@@ -245,7 +245,7 @@ def hausdorff_distance(
     points_P = []
     points_Q = []
     for d, p, q in distances:
-        if threshold * haus_dist < d:
+        if haus_dist >= threshold * d:
             points_P += [p]
             points_Q += [q]
 
