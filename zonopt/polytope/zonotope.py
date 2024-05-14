@@ -10,32 +10,41 @@ GeneratorType = Union[np.ndarray, torch.Tensor, List[List[float]]]
 TranslationType = Union[np.ndarray, torch.Tensor, List[float]]
 
 
-def express_as_subset_sum(x: np.ndarray, generators: List[np.ndarray]):
+def express_as_subset_sum(
+    x: np.ndarray, generators: List[np.ndarray], base: np.ndarray, return_indices=False
+):
     """
     Express x as a sum of a subset of generators. Returns
     boolean and binary list corresponding to which generators
     add up to x.
     """
-    is_sum, gens = _express_as_subset_sum(x, generators)
+    if type(x) != type(generators[0]):
+        raise ValueError("x and generators must be of the same array type")
+
+    is_sum, gens = _express_as_subset_sum(x, generators, base)
+    if return_indices:
+        return is_sum, gens
     return is_sum, [i in gens for i in range(len(generators))]
 
 
-def _express_as_subset_sum(x: np.ndarray, generators: List[np.ndarray], _prev: int = 0):
+def _express_as_subset_sum(
+    x: np.ndarray, generators: List[np.ndarray], base: np.ndarray, _prev: int = 0
+):
     """
     Helper function for above.
     """
-    if almost_equal(x, np.zeros(len(x))):
+    if almost_equal(x, base):
         return True, []
     if not len(generators):
         return False, []
 
     is_sum, subset = _express_as_subset_sum(
-        x - generators[0], generators[1:], _prev=_prev + 1
+        x - generators[0], generators[1:], base, _prev=_prev + 1
     )
     if is_sum:
         return True, subset + [_prev]
     else:
-        return _express_as_subset_sum(x, generators[1:], _prev=_prev + 1)
+        return _express_as_subset_sum(x, generators[1:], base, _prev=_prev + 1)
 
 
 class Zonotope(Polytope):
@@ -74,7 +83,7 @@ class Zonotope(Polytope):
         if isinstance(generators, torch.Tensor):
             if len(generators.shape) != 2:
                 raise shapeError
-            return generators.double()
+            return generators
         elif (
             isinstance(generators, List)
             and isinstance(generators[0], List)
@@ -98,7 +107,7 @@ class Zonotope(Polytope):
         if isinstance(translation, torch.Tensor):
             if len(translation.shape) != 1:
                 raise shapeError
-            return translation.double()
+            return translation
         elif isinstance(translation, List) and isinstance(translation[0], float):
             return np.float64(translation)
         else:
