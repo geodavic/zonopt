@@ -1,13 +1,14 @@
 from zonopt.metrics import hausdorff_distance
 from zonopt.polytope import Polytope, Zonotope
+from zonopt.polytope.zonotope import express_as_subset_sum
 import numpy as np
 import torch
 
 
 def hausdorff_loss(Z: Zonotope, P: Polytope, q: np.ndarray, p: np.ndarray):
     """
-    Calculate the hausdorff distance in a differentiable way. Must specify
-    points p in P and q in Z that achieve the distance.
+    Calculate the hausdorff distance in a differentiable way (w.r.t. Zonotope
+    parameters). Must specify points p in P and q in Z that achieve the distance.
 
     Parameters:
     -----------
@@ -34,7 +35,31 @@ def _hausdorff_loss_typeI(Z: Zonotope, P: Polytope, q: np.ndarray, p: np.ndarray
     """
     Implementation of above when q is a vertex of Z.
     """
-    pass
+    is_subset_sum, subset = express_as_subset_sum(
+        q,
+        list(Z.generators.detach().numpy()),
+        base=Z.translation.detach().numpy(),
+        return_indices=True,
+    )
+    if not is_subset_sum:
+        raise ValueError("Specified point is not a vertex of Z")
+
+    # q = Q*epsilon + mu
+    control_pt = 1.0 * Z.translation
+    for i in subset:
+        control_pt += Z.generators[i]
+
+    if P.has_vertex(p):
+        return torch.norm(control_pt - p)
+
+    halfspaces = P.supporting_halfspaces(p)
+    diff = torch.zeros(len(q))
+    for H in halfspaces:
+        eta = torch.tensor(H.a)
+        c = torch.tensor(H.c)
+        diff += (eta @ control_pt - c) * eta
+
+    return torch.norm(diff)
 
 
 def _hausdorff_loss_typeII(Z: Zonotope, P: Polytope, q: np.ndarray, p: np.ndarray):
