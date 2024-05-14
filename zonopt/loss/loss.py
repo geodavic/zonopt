@@ -55,8 +55,8 @@ def _hausdorff_loss_typeI(Z: Zonotope, P: Polytope, q: np.ndarray, p: np.ndarray
     halfspaces = P.supporting_halfspaces(p)
     diff = torch.zeros(len(q))
     for H in halfspaces:
-        eta = torch.tensor(H.a)
-        c = torch.tensor(H.c)
+        eta = torch.tensor(H._a)
+        c = torch.tensor(H._c)
         diff += (eta @ control_pt - c) * eta
 
     return torch.norm(diff)
