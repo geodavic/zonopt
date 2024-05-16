@@ -62,13 +62,13 @@ class TestZonotope(unittest.TestCase):
 
     def test_express_as_subset(self):
         Z = Zonotope.random(5, 3)
-        for _ in range(5):
+        for _ in range(10):
             subset = np.random.randint(0, 2, 5)
             target = sum([g for i, g in enumerate(Z.generators) if subset[i]])
             if isinstance(target, int):
-                target = np.zeros(5)
+                target = np.zeros(3)
             is_sum, coeffs = express_as_subset_sum(
-                target, [g for g in Z.generators], np.zeros(3)
+                target, [g for g in Z.generators], base=Z.translation
             )
             self.assertTrue(is_sum)
             np.testing.assert_equal(subset, np.array(coeffs))
@@ -76,5 +76,5 @@ class TestZonotope(unittest.TestCase):
     def test_zonotope_vertices_are_subset_sums(self):
         Z = Zonotope.random(5, 3)
         for v in Z.vertices:
-            is_sum, _ = express_as_subset_sum(v, [g for g in Z.generators], np.zeros(3))
+            is_sum, _ = express_as_subset_sum(v, [g for g in Z.generators], base=Z.translation)
             self.assertTrue(is_sum)
