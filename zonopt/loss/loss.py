@@ -98,7 +98,7 @@ def _hausdorff_loss_typeII(Z: Zonotope, P: Polytope, q: np.ndarray, p: np.ndarra
         # Sign of eta won't matter.
         slicer = lambda i, g: torch.cat([g[:i], g[(i + 1) :]])
         submatrix_generator = lambda i: torch.stack(
-            [slicer(i, Z.generators[j]) for j in subset]
+            [slicer(i, Z.generators[j]) for j in facet_subset]
         )
         eta = torch.stack(
             [
@@ -109,7 +109,7 @@ def _hausdorff_loss_typeII(Z: Zonotope, P: Polytope, q: np.ndarray, p: np.ndarra
         eta = eta / torch.norm(eta)
 
         # Add residual
-        diff += (eta @ (p - sample_vertex_torch)) * eta
+        diff += (eta @ (torch.tensor(p) - sample_vertex_torch)) * eta
 
     return torch.norm(diff)
 
@@ -130,7 +130,7 @@ def get_facet_generators(Z: Zonotope, H: Halfspace):
     a supporting halfspace of Z.
     """
     gens = []
-    for ids, g in enumerate(Z.generators):
-        if almost_equal(H.a @ g, 0):
+    for idx, g in enumerate(Z.generators):
+        if almost_equal(H.a @ g.detach().numpy(), 0):
             gens += [idx]
     return gens
