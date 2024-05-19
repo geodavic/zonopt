@@ -59,19 +59,15 @@ class TestHausdorffLoss(unittest.TestCase):
 
         for i in range(self.Z.rank):
             for j in range(self.Z.dimension):
-                target_gradient = (
-                    eta[j] * epsilon[i]
-                )  # Algebraic value of d \delta_q / d g_{i,j}
-                loss_gradient = self.Z.generators.grad[i][
-                    j
-                ].item()  # Calculated value via loss
+                # Algebraic value of d \delta_q / d g_{i,j}
+                target_gradient = eta[j] * epsilon[i]
+                # Calculated value via loss
+                loss_gradient = self.Z.generators.grad[i][j].item()
                 np.testing.assert_almost_equal(target_gradient, loss_gradient)
 
         for i in range(self.Z.dimension):
+            # Algebraic value of d \delta_q / d\mu_j
             target_gradient = eta[j]
-            loss_gradient = self.Z.translation.grad[
-                j
-            ].item()  # Algebraic value of d \delta_q / d\mu_j
-            np.testing.assert_almost_equal(
-                target_gradient, loss_gradient
-            )  # Calculated value via loss
+            # Calculated value via loss
+            loss_gradient = self.Z.translation.grad[j].item()
+            np.testing.assert_almost_equal(target_gradient, loss_gradient)
