@@ -13,11 +13,13 @@ def subsets(arr):
     [subsets.extend(list(combinations(arr, n))) for n in range(len(arr) + 1)]
     return subsets
 
+
 def binary_lists(n):
     """
     Return all binary lists of length n.
     """
     return [[i in s for i in range(n)] for s in subsets(list(range(n)))]
+
 
 def affine_from_vertices(vertices: np.ndarray):
     """

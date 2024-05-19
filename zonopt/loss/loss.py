@@ -39,8 +39,7 @@ def _hausdorff_loss_typeI(Z: Zonotope, P: Polytope, q: np.ndarray, p: np.ndarray
     """
     is_subset_sum, subset = express_as_subset_sum(
         q,
-        list(Z.generators.detach().numpy()),
-        base=Z.translation.detach().numpy(),
+        Z,
         return_indices=True,
     )
     if not is_subset_sum:
@@ -52,7 +51,7 @@ def _hausdorff_loss_typeI(Z: Zonotope, P: Polytope, q: np.ndarray, p: np.ndarray
         control_pt += Z.generators[i]
 
     if P.has_vertex(p):
-        return torch.norm(control_pt - p)
+        return torch.norm(control_pt - torch.tensor(p))
 
     halfspaces = P.supporting_halfspaces(p)
     diff = torch.zeros(len(q))
@@ -72,9 +71,7 @@ def _hausdorff_loss_typeII(Z: Zonotope, P: Polytope, q: np.ndarray, p: np.ndarra
     halfspaces = Z.supporting_halfspaces(q)
     diff = torch.zeros(len(q))
     for H in halfspaces:
-        facet_subset = get_facet_generators(Z, H)
         sample_vertex = get_vertex_on_facet(Z, H)
-
         if sample_vertex is None:
             raise GeometryError(
                 "Could not sample a vertex from Z and the given halfspace"
@@ -82,8 +79,7 @@ def _hausdorff_loss_typeII(Z: Zonotope, P: Polytope, q: np.ndarray, p: np.ndarra
 
         is_subset_sum, subset = express_as_subset_sum(
             sample_vertex,
-            list(Z.generators.detach().numpy()),
-            base=Z.translation.detach().numpy(),
+            Z,
             return_indices=True,
         )
         if not is_subset_sum:
@@ -96,22 +92,33 @@ def _hausdorff_loss_typeII(Z: Zonotope, P: Polytope, q: np.ndarray, p: np.ndarra
 
         # Calculate eta, the normal to H, in terms of Z generators
         # Sign of eta won't matter.
-        slicer = lambda i, g: torch.cat([g[:i], g[(i + 1) :]])
-        submatrix_generator = lambda i: torch.stack(
-            [slicer(i, Z.generators[j]) for j in facet_subset]
-        )
-        eta = torch.stack(
-            [
-                (-1) ** (i + 1) * torch.det(submatrix_generator(i))
-                for i in range(Z.dimension)
-            ]
-        )
-        eta = eta / torch.norm(eta)
+        eta = get_facet_normal(Z, H)
 
         # Add residual
         diff += (eta @ (torch.tensor(p) - sample_vertex_torch)) * eta
 
     return torch.norm(diff)
+
+
+def get_facet_normal(Z: Zonotope, H: Halfspace):
+    """
+    Get a unit normal to a supporting halfspace on a Zonotope.
+    Same numerical value as H.a, but differentiable in terms of
+    the generators of Z.
+    """
+    facet_subset = get_facet_generators(Z, H)
+    slicer = lambda i, g: torch.cat([g[:i], g[(i + 1) :]])
+    submatrix_generator = lambda i: torch.stack(
+        [slicer(i, Z.generators[j]) for j in facet_subset]
+    )
+    eta = torch.stack(
+        [
+            (-1) ** (i + 1) * torch.det(submatrix_generator(i))
+            for i in range(Z.dimension)
+        ]
+    )
+    eta = eta / torch.norm(eta)
+    return eta
 
 
 def get_vertex_on_facet(Z: Zonotope, H: Halfspace):

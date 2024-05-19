@@ -1,6 +1,7 @@
 import numpy as np
 from typing import Union, List, Any
 import torch
+import warnings
 from scipy.spatial import ConvexHull
 from zonopt.polytope import Polytope
 from zonopt.polytope.utils import hull_from_affine, translate_points
@@ -8,43 +9,6 @@ from zonopt.polytope.comparisons import almost_equal
 
 GeneratorType = Union[np.ndarray, torch.Tensor, List[List[float]]]
 TranslationType = Union[np.ndarray, torch.Tensor, List[float]]
-
-
-def express_as_subset_sum(
-    x: np.ndarray, generators: List[np.ndarray], base: np.ndarray, return_indices=False
-):
-    """
-    Express x as a sum of a subset of generators. Returns
-    boolean and binary list corresponding to which generators
-    add up to x.
-    """
-    if type(x) != type(generators[0]):
-        raise ValueError("x and generators must be of the same array type")
-
-    is_sum, gens = _express_as_subset_sum(x, generators, base)
-    if return_indices:
-        return is_sum, gens
-    return is_sum, [i in gens for i in range(len(generators))]
-
-
-def _express_as_subset_sum(
-    x: np.ndarray, generators: List[np.ndarray], base: np.ndarray, _prev: int = 0
-):
-    """
-    Helper function for above.
-    """
-    if almost_equal(x, base):
-        return True, []
-    if not len(generators):
-        return False, []
-
-    is_sum, subset = _express_as_subset_sum(
-        x - generators[0], generators[1:], base, _prev=_prev + 1
-    )
-    if is_sum:
-        return True, subset + [_prev]
-    else:
-        return _express_as_subset_sum(x, generators[1:], base, _prev=_prev + 1)
 
 
 class Zonotope(Polytope):
@@ -65,6 +29,7 @@ class Zonotope(Polytope):
             if isinstance(generators, torch.Tensor):
                 translation = torch.tensor(translation)
 
+        self._is_torch = False
         self._generators = self.validate_generators(generators)
         self._translation = self.validate_translation(translation)
 
@@ -83,6 +48,7 @@ class Zonotope(Polytope):
         if isinstance(generators, torch.Tensor):
             if len(generators.shape) != 2:
                 raise shapeError
+            self._is_torch = True
             return generators
         elif (
             isinstance(generators, List)
@@ -120,6 +86,10 @@ class Zonotope(Polytope):
     @property
     def generators(self):
         return self._generators
+
+    @property
+    def is_torch(self):
+        return self._is_torch
 
     @generators.setter
     def generators(self, new_generators: GeneratorType):
@@ -159,6 +129,8 @@ class Zonotope(Polytope):
         scale=None,
         positive=True,
         random_translation=False,
+        use_torch=False,
+        requires_grad=False,
     ):
         """
         Return zonotope with randomly generated generators and translation.
@@ -174,6 +146,12 @@ class Zonotope(Polytope):
             [0,scale] or [-scale,scale], depending on the value of `positive`.
         positive: bool
             if true, the resulting zonotope will have all non-negative generators.
+        random_translation: bool
+            Whether to use a random translation instead of zero translation.
+        use_torch: bool
+            Return a torch zonotope (tensor parameters)
+        requires_grad: bool
+            If above is true, then make tensors require grad.
         """
 
         if scale is None:
@@ -190,4 +168,51 @@ class Zonotope(Polytope):
         generators *= scale
         translation *= scale
 
+        if use_torch:
+            generators = torch.tensor(generators, requires_grad=requires_grad)
+            translation = torch.tensor(translation, requires_grad=requires_grad)
+
         return cls(generators=generators, translation=translation)
+
+
+def express_as_subset_sum(x: np.ndarray, Z: Zonotope, return_indices=False):
+    """
+    Express x as a sum of a subset of the generators of Z. Returns
+    boolean and a list of indices of generators of Z which are used
+    in the sum.
+    """
+
+    if Z.is_torch:
+        generators = list(Z.generators.detach().numpy())
+        base = Z.translation.detach().numpy()
+    else:
+        generators = list(Z.generators)
+        base = Z.translation
+
+    if type(x) != type(generators[0]):
+        raise ValueError("x and generators must be of the same array type")
+
+    is_sum, gens = _express_as_subset_sum(x, generators, base)
+    if return_indices:
+        return is_sum, gens
+    return is_sum, [i in gens for i in range(len(generators))]
+
+
+def _express_as_subset_sum(
+    x: np.ndarray, generators: List[np.ndarray], base: np.ndarray, _prev: int = 0
+):
+    """
+    Recursive helper function for above.
+    """
+    if almost_equal(x, base):
+        return True, []
+    if not len(generators):
+        return False, []
+
+    is_sum, subset = _express_as_subset_sum(
+        x - generators[0], generators[1:], base, _prev=_prev + 1
+    )
+    if is_sum:
+        return True, subset + [_prev]
+    else:
+        return _express_as_subset_sum(x, generators[1:], base, _prev=_prev + 1)
