@@ -6,11 +6,11 @@ authors = ["George D. Torres"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.10"
 qpsolvers = "^4.0.0"
 pydantic = "^2.4.2"
 torch = "^2.2.2"
-
+matplotlib = "^3.9.0"
 
 [build-system]
 requires = ["poetry-core"]
