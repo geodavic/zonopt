@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-from typing import Union, List
+from typing import Union, List, Tuple
 from zonopt.polytope import Polytope
 from zonopt.plot.utils import get_bounds
 
@@ -9,13 +9,15 @@ class Plotter:
     Draw polytopes in two dimensions.
     """
 
-    def __init__(self, figsize=None, pad=0.6, marker="o", verbose=True):
-        figsize = figsize or (10, 10)
+    def __init__(self, figsize=None, pad=0.4, marker="o", verbose=True):
+        self.figsize = figsize or (10, 10)
         self.pad = pad
         self.marker = marker
         self.verbose = verbose
-        plt.clf()
-        self.fig, self.ax = plt.subplots(figsize=figsize)
+        self._setup()
+
+    def _setup(self):
+        self.fig, self.ax = plt.subplots(figsize=self.figsize)
         self.ax.set_aspect("equal")
 
     def draw_polytopes(
@@ -68,6 +70,46 @@ class Plotter:
         for c, P in zip(color, polytopes):
             self._draw_single(P, c)
 
+    def draw_lines(
+        self,
+        lines: List[Tuple],
+        marker: Union[List[str], str] = None,
+        color: Union[List[str], str] = None,
+    ):
+        """
+        Render a collection of lines.
+
+        Parameters:
+        -----------
+        lines: List[Tuple]
+            List of lines, where each line is a tuple (p,q) of points in the plane.
+        marker: Union[List[str], str]
+            Marker(s) for the endpoints of the lines.
+        color: Union[List[str], str]
+            Color(s) for the lines.
+        """
+        if color is None:
+            color = "k"
+        if isinstance(color, str):
+            color = [color] * len(lines)
+
+        if marker is None:
+            marker = "*"
+        if isinstance(marker, str):
+            marker = [marker] * len(lines)
+
+        if len(marker) != len(lines):
+            raise ValueError(
+                "Marker must be a single string or a list of strings the same length as lines"
+            )
+        if len(color) != len(lines):
+            raise ValueError(
+                "Color must be a single string or a list of strings the same length as lines"
+            )
+
+        for line, m, c in zip(lines, marker, color):
+            self._draw_line(line[0], line[1], marker=m, color=c)
+
     def _draw_single(self, P: Polytope, color: str):
         n = len(P.vertices)
         for i in range(n):
@@ -77,9 +119,14 @@ class Plotter:
                 [p1[0], p2[0]], [p1[1], p2[1]], marker=self.marker, color=color
             )
 
+    def _draw_line(self, p, q, marker=None, color=None):
+        self.ax.plot([p[0], q[0]], [p[1], q[1]], marker=marker, color=color)
+
     def save(self, filename=None, dpi=300):
         if filename is None:
             filename = "render.png"
-        plt.savefig(filename, bbox_inches="tight", dpi=dpi)
+        self.ax.get_figure().savefig(filename, bbox_inches="tight", dpi=dpi)
         if self.verbose:
             print(f"Saved as {filename}")
+        self.fig.clf()
+        self._setup()

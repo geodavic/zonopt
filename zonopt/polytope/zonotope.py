@@ -53,7 +53,9 @@ class Zonotope(Polytope):
         elif (
             isinstance(generators, List)
             and isinstance(generators[0], List)
-            and isinstance(generators[0][0], float)
+            and (
+                isinstance(generators[0][0], float) or isinstance(generators[0][0], int)
+            )
         ):
             return np.float64(generators)
         else:
@@ -74,7 +76,9 @@ class Zonotope(Polytope):
             if len(translation.shape) != 1:
                 raise shapeError
             return translation
-        elif isinstance(translation, List) and isinstance(translation[0], float):
+        elif isinstance(translation, List) and (
+            isinstance(translation[0], float) or isinstance(translation[0], int)
+        ):
             return np.float64(translation)
         else:
             raise validationError
