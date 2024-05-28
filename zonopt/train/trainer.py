@@ -55,7 +55,9 @@ class ZonotopeTrainer:
         self.optimizer.step(gradients_data)
 
     def train(self):
-
+        """
+        TODO
+        """
         for step in pbar:
             distance, target_points, control_points = hausdorff_distance(
                 self.target_polytope, self.zonotope
