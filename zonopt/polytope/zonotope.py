@@ -110,16 +110,20 @@ class Zonotope(Polytope):
     def rank(self):
         return len(self.generators)
 
-    def copy(self, requires_grad: bool = False):
+    def copy(self, cast_to_torch: bool = False, requires_grad: bool = False):
         if isinstance(self.generators, torch.Tensor):
             generators_c = torch.clone(self.generators.detach())
             generators_c.requires_grad = requires_grad
+        elif cast_to_torch:
+            generators_c = torch.tensor(self.generators, requires_grad=requires_grad)
         else:
             generators_c = np.copy(self.generators)
 
         if isinstance(self.translation, torch.Tensor):
             translation_c = torch.clone(self.translation.detach())
             translation_c.requires_grad = requires_grad
+        elif cast_to_torch:
+            translation_c = torch.tensor(self.translation, requires_grad=requires_grad)
         else:
             translation_c = np.copy(self.translation)
 

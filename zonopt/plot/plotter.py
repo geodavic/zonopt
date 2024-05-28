@@ -123,6 +123,9 @@ class Plotter:
         self.ax.plot([p[0], q[0]], [p[1], q[1]], marker=marker, color=color)
 
     def save(self, filename=None, dpi=300):
+        """
+        Export to a file.
+        """
         if filename is None:
             filename = "render.png"
         self.ax.get_figure().savefig(filename, bbox_inches="tight", dpi=dpi)

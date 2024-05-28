@@ -1,6 +1,6 @@
 from zonopt.polytope import Polytope, Zonotope
 from zonopt.polytope.zonotope import express_as_subset_sum
-from zonopt.loss.loss import get_facet_normal, get_vertex_on_facet, hausdorff_loss
+from zonopt.train.loss import get_facet_normal, get_vertex_on_facet, hausdorff_loss
 from zonopt.metrics import hausdorff_distance
 import torch
 import numpy as np
