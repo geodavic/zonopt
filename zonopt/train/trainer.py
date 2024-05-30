@@ -3,6 +3,7 @@ from zonopt.metrics import hausdorff_distance
 from zonopt.train.loss import hausdorff_loss
 from zonopt.train.optimizer import Optimizer
 import numpy as np
+import torch
 
 
 class ZonotopeTrainer:
@@ -44,8 +45,8 @@ class ZonotopeTrainer:
             loss.backward()
             gradients_data += [
                 (
-                    Z.generators.grad.detach().numpy(),
-                    Z.translation.grad.detach().numpy(),
+                    self._get_grad(Z.generators),
+                    self._get_grad(Z.translation),
                     p,
                     q,
                     loss.item()
@@ -53,6 +54,11 @@ class ZonotopeTrainer:
             ]
 
         self.optimizer.step(gradients_data)
+
+    def _get_grad(self, t: torch.Tensor):
+        if t.grad is None:
+            return np.zeroslike(t)
+        return t.grad.detach().numpy()
 
     def train(self):
         """
