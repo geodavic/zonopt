@@ -134,11 +134,12 @@ class Zonotope(Polytope):
         cls,
         rank: int,
         dimension: int,
-        scale=None,
-        positive=True,
-        random_translation=False,
-        use_torch=False,
-        requires_grad=False,
+        scale:float=None,
+        seed:int=None,
+        positive:bool=True,
+        random_translation:bool=False,
+        use_torch:bool=False,
+        requires_grad:bool=False,
     ):
         """
         Return zonotope with randomly generated generators and translation.
@@ -149,9 +150,11 @@ class Zonotope(Polytope):
             rank of zonotope.
         dimension: int
             ambient dimension of zonotope.
-        scale: int
+        scale: float
             generators and translation are chosen with entries uniform random in
             [0,scale] or [-scale,scale], depending on the value of `positive`.
+        seed: int
+            Seed used for the np random call.
         positive: bool
             if true, the resulting zonotope will have all non-negative generators.
         random_translation: bool
@@ -161,6 +164,9 @@ class Zonotope(Polytope):
         requires_grad: bool
             If above is true, then make tensors require grad.
         """
+        
+        if seed is not None:
+            np.random.seed(seed)
 
         if scale is None:
             scale = np.sqrt(1 / rank)

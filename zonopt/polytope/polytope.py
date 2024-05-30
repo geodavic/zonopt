@@ -54,6 +54,8 @@ class Halfspace:
         return False
 
     def contains(self, x):
+        if self.boundary.contains(x):
+            return True
         if self._a @ x - self._c <= 0:
             return True
         return False
@@ -61,7 +63,7 @@ class Halfspace:
     def __repr__(self):
         a = np.round(self.a, 3)
         c = np.round(self.c, 3)
-        return f"Hyperplane({a}•x =< {c})"
+        return f"Halfspace({a}•x =< {c})"
 
 
 class Polytope:
@@ -93,11 +95,13 @@ class Polytope:
         self._halfspaces = None
 
     @classmethod
-    def random(self, num_points: int, dimension: int, scale=1):
+    def random(self, num_points: int, dimension: int, scale=1, seed: int=None):
         """
         Return polytope formed by the convex hull of a given number of random points
         in the given dimension.
         """
+        if seed is not None:
+            np.random.seed(seed)
         pts = scale * np.random.rand(num_points, dimension)
         P = self(points=pts)
         return P
