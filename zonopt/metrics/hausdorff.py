@@ -43,7 +43,7 @@ def _distance_to_polytope_l2(x: np.array, P: Polytope):
         if coeffs is not None:
             return 0, x, coeffs
         else:
-            raise HausdorffError("Program for l2 distance did not succeed.")
+            raise HausdorffError("Linear program for l2 distance did not succeed.")
 
     P_vertices = P.vertices
 
@@ -74,7 +74,7 @@ def _distance_to_polytope_l2(x: np.array, P: Polytope):
         )
 
     if sol is None:
-        raise HausdorffError("Program for l2 distance did not succeed.")
+        raise HausdorffError("Quadratic program for l2 distance did not succeed.")
 
     proj = sol[: len(x)]
     coeffs = sol[len(x) :]
@@ -229,23 +229,24 @@ def hausdorff_distance(
         within the specified threshold.
     """
 
-    distances = []
-
+    distances_P = []
     for p in P.vertices:
         dist, projp, _ = distance_to_polytope(p, Q, metric=metric)
-        distances += [[dist, p, projp]]
+        distances_P += [[dist, p, projp]]
+    distances_P = sorted(distances_P, key=(lambda x: -x[0]))
 
+    distances_Q = []
     for q in Q.vertices:
         dist, projq, _ = distance_to_polytope(q, P, metric=metric)
-        distances += [[dist, projq, q]]
+        distances_Q += [[dist, projq, q]]
+    distances_Q = sorted(distances_Q, key=(lambda x: -x[0]))
 
-    distances = sorted(distances, key=(lambda x: x[0]))
-    haus_dist = distances[0][0]
+    haus_dist = max(distances_P[0][0], distances_Q[0][0])
 
     points_P = []
     points_Q = []
-    for d, p, q in distances:
-        if haus_dist >= threshold * d:
+    for d, p, q in distances_P+distances_Q:
+        if d >= threshold * haus_dist:
             points_P += [p]
             points_Q += [q]
 
