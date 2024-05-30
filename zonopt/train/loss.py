@@ -50,17 +50,7 @@ def _hausdorff_loss_typeI(Z: Zonotope, P: Polytope, q: np.ndarray, p: np.ndarray
     for i in subset:
         control_pt += Z.generators[i]
 
-    if P.has_vertex(p):
-        return torch.norm(control_pt - torch.tensor(p))
-
-    halfspaces = P.supporting_halfspaces(p)
-    diff = torch.zeros(len(q))
-    for H in halfspaces:
-        eta = torch.tensor(H._a)
-        c = torch.tensor(H._c)
-        diff += (eta @ control_pt - c) * eta
-
-    return torch.norm(diff)
+    return torch.norm(control_pt - torch.tensor(p))
 
 
 def _hausdorff_loss_typeII(Z: Zonotope, P: Polytope, q: np.ndarray, p: np.ndarray):
