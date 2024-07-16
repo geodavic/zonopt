@@ -2,7 +2,8 @@ import numpy as np
 from typing import List, Union
 from scipy.spatial import ConvexHull
 from zonopt.polytope.comparisons import almost_equal
-from zonopt.polytope.utils import is_centrally_symmetric
+from zonopt.polytope.utils import is_centrally_symmetric, express_point_as_convex_sum
+from zonopt.polytope.exceptions import GeometryError
 
 
 class Hyperplane:
@@ -95,7 +96,7 @@ class Polytope:
         self._halfspaces = None
 
     @classmethod
-    def random(self, num_points: int, dimension: int, scale=1, seed: int=None):
+    def random(self, num_points: int, dimension: int, scale=1, seed: int = None):
         """
         Return polytope formed by the convex hull of a given number of random points
         in the given dimension.
@@ -174,3 +175,30 @@ class Polytope:
             if H.boundary.contains(x):
                 halfspaces.append(H)
         return halfspaces
+
+    def face_dimension(self, x):
+        """
+        Return the dimension of the face on which x lies. If
+        x is not in P, then return -1.
+        """
+        if not self.contains(x):
+            return -1
+
+        coeffs = express_point_as_convex_sum(x, self.vertices)
+        if coeffs is None:
+            raise GeometryError("Could not get face dimension (LP failed)")
+
+        active_vertices = [
+            v for v, c in zip(self.vertices, coeffs) if not almost_equal(c, 0)
+        ]
+
+        # If three or fewer active vertices, dimension
+        # is number of active vertices minus 1.
+        if len(active_vertices) <= 3:
+            return len(active_vertices) - 1
+
+        # Otherwise get dimension of space spanned by active vertices
+        # slice first three, get 2-plane, then add one at a time and check
+        # if they are all contained.
+        # TODO: not yet implemented. Resume here and add a test when done.
+        return

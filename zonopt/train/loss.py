@@ -23,6 +23,12 @@ def hausdorff_loss(Z: Zonotope, P: Polytope, q: np.ndarray, p: np.ndarray):
         a point in P such that d_H(P,Z) = d(p,q)
     """
 
+    # Temporary restriction while loss function is under construction
+    if Z.dimension != 2:
+        raise NotImplementedError(
+            "Hausdorff loss is not yet correctly implemented in dimensions greater than 2. This is a work in progress; please let the repository owner know and he can prioritize fixing it!"
+        )
+
     if Z.has_vertex(q):
         return _hausdorff_loss_typeI(Z, P, q, p)
     elif P.has_vertex(p):
@@ -50,7 +56,18 @@ def _hausdorff_loss_typeI(Z: Zonotope, P: Polytope, q: np.ndarray, p: np.ndarray
     for i in subset:
         control_pt += Z.generators[i]
 
-    return torch.norm(control_pt - torch.tensor(p))
+    if P.has_vertex(p):
+        return torch.norm(control_pt - torch.tensor(p))
+
+    # This is incorrect for dimension > 2 (halfspaces overdetermine the face)
+    halfspaces = P.supporting_halfspaces(p)
+    diff = torch.zeros(len(q))
+    for H in halfspaces:
+        eta = torch.tensor(H._a)
+        c = torch.tensor(H._c)
+        diff += (eta @ control_pt - c) * eta
+
+    return torch.norm(diff)
 
 
 def _hausdorff_loss_typeII(Z: Zonotope, P: Polytope, q: np.ndarray, p: np.ndarray):
@@ -58,6 +75,7 @@ def _hausdorff_loss_typeII(Z: Zonotope, P: Polytope, q: np.ndarray, p: np.ndarra
     Implementation of hausdorff loss when p is a vertex of P and q is not a vertex of Z.
     """
 
+    # This is incorrect for dimension > 2 (halfspaces overdetermine the face)
     halfspaces = Z.supporting_halfspaces(q)
     diff = torch.zeros(len(q))
     for H in halfspaces:
