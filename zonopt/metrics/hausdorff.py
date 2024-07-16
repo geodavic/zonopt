@@ -245,7 +245,7 @@ def hausdorff_distance(
 
     points_P = []
     points_Q = []
-    for d, p, q in distances_P+distances_Q:
+    for d, p, q in distances_P + distances_Q:
         if d >= threshold * haus_dist:
             points_P += [p]
             points_Q += [q]

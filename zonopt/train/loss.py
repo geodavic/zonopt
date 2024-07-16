@@ -3,6 +3,7 @@ from zonopt.polytope import Polytope, Zonotope, Halfspace
 from zonopt.polytope.zonotope import express_as_subset_sum
 from zonopt.polytope.comparisons import almost_equal
 from zonopt.polytope.exceptions import GeometryError
+from zonopt.todo import GeorgePleaseImplement
 import numpy as np
 import torch
 
@@ -25,9 +26,7 @@ def hausdorff_loss(Z: Zonotope, P: Polytope, q: np.ndarray, p: np.ndarray):
 
     # Temporary restriction while loss function is under construction
     if Z.dimension != 2:
-        raise NotImplementedError(
-            "Hausdorff loss is not yet correctly implemented in dimensions greater than 2. This is a work in progress; please let the repository owner know and he can prioritize fixing it!"
-        )
+        raise GeorgePleaseImplement("Hausdorff loss in dimension greater than 2")
 
     if Z.has_vertex(q):
         return _hausdorff_loss_typeI(Z, P, q, p)

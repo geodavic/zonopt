@@ -2,6 +2,7 @@ from zonopt.polytope import Polytope, Zonotope
 from zonopt.metrics import hausdorff_distance
 from zonopt.train.loss import hausdorff_loss
 from zonopt.train.optimizer import Optimizer
+from zonopt.todo import GeorgePleaseImplement
 import numpy as np
 import torch
 
@@ -32,6 +33,8 @@ class ZonotopeTrainer:
         self.optimizer.zonotope = self.zonotope
 
     def _initialize_zonotope(self, rank: int):
+        if self.warmstart:
+            raise GeorgePleaseImplement("warmstarting")
         """
         TODO
         """
@@ -49,7 +52,7 @@ class ZonotopeTrainer:
                     self._get_grad(Z.translation),
                     p,
                     q,
-                    loss.item()
+                    loss.item(),
                 )
             ]
 

@@ -2,6 +2,7 @@ import numpy as np
 from typing import Any
 from zonopt.polytope.comparisons import almost_equal
 from zonopt.polytope.exceptions import GeometryError
+from zonotope.todo import GeorgePleaseImplement
 from scipy.spatial import ConvexHull
 from scipy.optimize import linprog
 from itertools import combinations
@@ -30,8 +31,8 @@ def affine_from_vertices(vertices: np.ndarray):
             "Given vertices are not centrally symmetric, can't compute zonotope generators."
         )
 
-    raise NotImplementedError(
-        "Creating the generators from the vertices of a zonotope is not yet supported"
+    raise GeorgePleaseImplement(
+        "creating the generators from the vertices of a zonotope"
     )
 
 
