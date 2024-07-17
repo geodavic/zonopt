@@ -71,7 +71,7 @@ To compute the L2 hausdorff between two `Polytope` objects, use `hausdorff_dista
 from zonopt import hausdorff_distance
 distance, _, _ = hausdorff_distance(P,Z)
 ```
-This computation solves a quadratic program using the [qpsolvers](github.com/qpsolvers/qpsolvers) package. For details, see their documentation.
+This computation solves a quadratic program using the [qpsolvers](http://github.com/qpsolvers/qpsolvers) package. For details, see their documentation.
 
 ## Training
 
