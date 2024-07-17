@@ -93,8 +93,6 @@ class Polytope:
         else:
             self._hull = hull
 
-        self._halfspaces = None
-
     @classmethod
     def random(self, num_points: int, dimension: int, scale=1, seed: int = None):
         """
@@ -117,10 +115,8 @@ class Polytope:
 
     @property
     def halfspaces(self):
-        if self._halfspaces is None:
-            inequalities = [e for e in np.unique(self._hull.equations, axis=0)]
-            self._halfspaces = [Halfspace(eq[:-1], -eq[-1]) for eq in inequalities]
-        return self._halfspaces
+        inequalities = [e for e in np.unique(self._hull.equations, axis=0)]
+        return [Halfspace(eq[:-1], -eq[-1]) for eq in inequalities]
 
     def __mul__(self, alpha):
         """

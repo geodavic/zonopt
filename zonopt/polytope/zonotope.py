@@ -103,8 +103,7 @@ class Zonotope(Polytope):
     @translation.setter
     def translation(self, new_translation: TranslationType):
         self._translation = self.validate_translation(new_translation)
-        _vert = translate_points(self.vertices, new_translation)
-        self._hull = ConvexHull(_vert)
+        self._hull = hull_from_affine(self.generators, self._translation)
 
     @property
     def rank(self):

@@ -2,7 +2,7 @@ import numpy as np
 from typing import Any
 from zonopt.polytope.comparisons import almost_equal
 from zonopt.polytope.exceptions import GeometryError
-from zonotope.todo import GeorgePleaseImplement
+from zonopt.todo import GeorgePleaseImplement
 from scipy.spatial import ConvexHull
 from scipy.optimize import linprog
 from itertools import combinations
