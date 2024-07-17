@@ -77,4 +77,4 @@ This computation solves a quadratic program using the [qpsolvers](http://github.
 
 As shown in the Quickstart, we formulate the optimization of the hausdorff distance between a polytope `P` and a zonotope `Z` in the language of a `pytorch` training algorithm. 
 
-**Disclaimer** Currently `zonopt` cannot optimize in dimensions greater than 2 due to a bug that is still being resolved. We are working to resolve this bug quickly and apologize for any inconvenience.
+**Disclaimer:** Currently `zonopt` cannot optimize in dimensions greater than 2 due to a bug that is still being resolved. We are working to resolve this bug quickly and apologize for any inconvenience.
