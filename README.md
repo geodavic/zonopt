@@ -2,7 +2,7 @@
 
 ![Tests](https://github.com/geodavic/zonopt/actions/workflows/test.yml/badge.svg?event=push)
 
-A `pytorch` implementation of the results from [On Finding the Closest Zonotope to a Polytope in Hausdorff Distance](https://web.ma.utexas.edu/users/gdavtor/)
+A `pytorch` implementation of the results from [On Finding the Closest Zonotope to a Polytope in Hausdorff Distance](https://arxiv.org/abs/2407.13125)
 
 ## Installation
 
