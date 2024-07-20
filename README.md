@@ -18,14 +18,14 @@ pip install .
 
 ## Quickstart
 
-To use `zonopt`, you will need a polytope `P` that you want to approximate by a zonotope. Instantiate `P` by specifying its vertices:
+To use `zonopt`, you will need a polytope `P` that you want to approximate by a zonotope. Instantiate `P` by specifying its vertices, for example:
 
 ```python
 >>> from zonopt import Polytope
 >>> P = Polytope(points=[[0,0],[1,0],[0,1],[1,1]])
 ```
 
-To perform optimization, implement a `ZonotopeTrainer`. This requires an `Optimizer`, which specifies the learning rate and learning rate schedule, and a starting zonotope rank.
+To perform optimization, instantiate a `ZonotopeTrainer`. This requires an `Optimizer`, which specifies the learning rate and learning rate schedule, and a starting zonotope rank.
 
 ```python
 >>> from zonopt.train import ZonotopeTrainer, Optimizer
