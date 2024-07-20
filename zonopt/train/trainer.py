@@ -46,10 +46,7 @@ class ZonotopeTrainer:
         for p, q in zip(target_points, control_points):
             Z = self.optimizer.zonotope.copy(cast_to_torch=True, requires_grad=True)
             loss = hausdorff_loss(Z, self.target_polytope, q, p)
-            try:
-                loss.backward()
-            except:
-                import pdb
+            loss.backward()
 
                 pdb.set_trace()
             gradients_data += [
