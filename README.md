@@ -2,7 +2,7 @@
 
 ![Tests](https://github.com/geodavic/zonopt/actions/workflows/test.yml/badge.svg?event=push)
 
-A `pytorch` implementation of the results from [On Finding the Closest Zonotope to a Polytope in Hausdorff Distance](https://web.ma.utexas.edu/users/gdavtor/)
+A `pytorch` implementation of the results from [On Finding the Closest Zonotope to a Polytope in Hausdorff Distance](https://arxiv.org/abs/2407.13125)
 
 ## Installation
 
@@ -18,14 +18,14 @@ pip install .
 
 ## Quickstart
 
-To use `zonopt`, you will need a polytope `P` that you want to approximate by a zonotope. Instantiate `P` by specifying its vertices:
+To use `zonopt`, you will need a polytope `P` that you want to approximate by a zonotope. Instantiate `P` by specifying its vertices, for example:
 
 ```python
 >>> from zonopt import Polytope
 >>> P = Polytope(points=[[0,0],[1,0],[0,1],[1,1]])
 ```
 
-To perform optimization, implement a `ZonotopeTrainer`. This requires an `Optimizer`, which specifies the learning rate and learning rate schedule, and a starting zonotope rank.
+To perform optimization, instantiate a `ZonotopeTrainer`. This requires an `Optimizer`, which specifies the learning rate and learning rate schedule, and a starting zonotope rank.
 
 ```python
 >>> from zonopt.train import ZonotopeTrainer, Optimizer
@@ -77,4 +77,4 @@ This computation solves a quadratic program using the [qpsolvers](http://github.
 
 As shown in the Quickstart, we formulate the optimization of the hausdorff distance between a polytope `P` and a zonotope `Z` in the language of a `pytorch` training algorithm. 
 
-**Disclaimer:** Currently `zonopt` cannot optimize in dimensions greater than 2 due to a bug that is still being resolved. We are working to resolve this bug quickly and apologize for any inconvenience.
+**Disclaimer:** Currently `zonopt` cannot optimize in dimensions greater than 2 due to a bug that is still being resolved. For more details, see [this](https://github.com/geodavic/zonopt/issues/1) issue. We are working to resolve this bug quickly and apologize for any inconvenience.
