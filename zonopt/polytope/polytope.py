@@ -188,13 +188,9 @@ class Polytope:
             v for v, c in zip(self.vertices, coeffs) if not almost_equal(c, 0)
         ]
 
-        # If three or fewer active vertices, dimension
-        # is number of active vertices minus 1.
-        if len(active_vertices) <= 3:
-            return len(active_vertices) - 1
+        barycenter = sum(active_vertices) / len(active_vertices)
 
-        # Otherwise get dimension of space spanned by active vertices
-        # slice first three, get 2-plane, then add one at a time and check
-        # if they are all contained.
-        # TODO: not yet implemented. Resume here and add a test when done.
-        return
+        # Translate to barycenter so that span of active vertices is a subspace
+        active_vertices_translated = [v - barycenter for v in active_vertices]
+
+        return np.linalg.matrix_rank(active_vertices_translated)

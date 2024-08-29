@@ -1,4 +1,5 @@
 from zonopt.polytope import Polytope, Hyperplane, Halfspace
+from zonopt.metrics.hausdorff import _distance_to_polytope_l2
 import numpy as np
 import unittest
 
@@ -58,3 +59,14 @@ class TestPolytope(unittest.TestCase):
         np.testing.assert_almost_equal(b1, self.P1.barycenter)
         np.testing.assert_almost_equal(b2, self.P2.barycenter)
         np.testing.assert_almost_equal(b3, self.P3.barycenter)
+
+    def test_face_dimension(self):
+        self.assertEqual(self.P1.face_dimension([1, 1]), -1)
+        self.assertEqual(self.P1.face_dimension([1, 0]), 0)
+        self.assertEqual(self.P1.face_dimension([0.5, 0.5]), 1)
+
+        _, proj, _ = _distance_to_polytope_l2([-3, 4, 4], self.P3)
+        self.assertEqual(self.P3.face_dimension(proj), 1)
+
+        # TODO figure out how to select a face of given dimension
+        # and test that
