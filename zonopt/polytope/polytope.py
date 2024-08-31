@@ -180,17 +180,15 @@ class Polytope:
         if not self.contains(x):
             return -1
 
-        coeffs = express_point_as_convex_sum(x, self.vertices)
-        if coeffs is None:
-            raise GeometryError("Could not get face dimension (LP failed)")
-
-        active_vertices = [
-            v for v, c in zip(self.vertices, coeffs) if not almost_equal(c, 0)
-        ]
+        incident_h = self.supporting_halfspaces(x)
+        active_vertices = []
+        for v in self.vertices:
+            if all([H.boundary.contains(v) for H in incident_h]):
+                active_vertices.append(v)
 
         barycenter = sum(active_vertices) / len(active_vertices)
 
         # Translate to barycenter so that span of active vertices is a subspace
         active_vertices_translated = [v - barycenter for v in active_vertices]
-
+        
         return np.linalg.matrix_rank(active_vertices_translated)

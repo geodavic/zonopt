@@ -1,4 +1,4 @@
-from zonopt.polytope import Polytope, Hyperplane, Halfspace
+from zonopt.polytope import Polytope, Hyperplane, Halfspace, Cube
 from zonopt.metrics.hausdorff import _distance_to_polytope_l2
 import numpy as np
 import unittest
@@ -22,6 +22,7 @@ class TestPolytope(unittest.TestCase):
                 [0, 5, 4],
             ]
         )
+        self.P4 = Cube(6)
 
     def test_mul(self):
         P = 2 * self.P1
@@ -68,5 +69,6 @@ class TestPolytope(unittest.TestCase):
         _, proj, _ = _distance_to_polytope_l2([-3, 4, 4], self.P3)
         self.assertEqual(self.P3.face_dimension(proj), 1)
 
-        # TODO figure out how to select a face of given dimension
-        # and test that
+        for i in range(1,self.P4.dimension):
+            x = [0.5]*i + [0]*(self.P4.dimension-i)
+            self.assertEqual(self.P4.face_dimension(x), i)
