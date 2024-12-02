@@ -24,10 +24,6 @@ def hausdorff_loss(Z: Zonotope, P: Polytope, q: np.ndarray, p: np.ndarray):
         a point in P such that d_H(P,Z) = d(p,q)
     """
 
-    # Temporary restriction while loss function is under construction
-    if Z.dimension != 2:
-        raise GeorgePleaseImplement("Hausdorff loss in dimension greater than 2")
-
     if Z.has_vertex(q):
         return _hausdorff_loss_typeI(Z, P, q, p)
     elif P.has_vertex(p):
@@ -58,10 +54,11 @@ def _hausdorff_loss_typeI(Z: Zonotope, P: Polytope, q: np.ndarray, p: np.ndarray
     if P.has_vertex(p):
         return torch.norm(control_pt - torch.tensor(p))
 
-    # This is incorrect for dimension > 2 (halfspaces overdetermine the face)
     halfspaces = P.supporting_halfspaces(p)
+    minimal_halfspaces = halfspaces[:P.face_dimension(p)]
+
     diff = torch.zeros(len(q))
-    for H in halfspaces:
+    for H in minimal_halfspaces:
         eta = torch.tensor(H._a)
         c = torch.tensor(H._c)
         diff += (eta @ control_pt - c) * eta
@@ -76,8 +73,10 @@ def _hausdorff_loss_typeII(Z: Zonotope, P: Polytope, q: np.ndarray, p: np.ndarra
 
     # This is incorrect for dimension > 2 (halfspaces overdetermine the face)
     halfspaces = Z.supporting_halfspaces(q)
+    minimal_halfspaces = halfspaces[:Z.face_dimension(q)]
+
     diff = torch.zeros(len(q))
-    for H in halfspaces:
+    for H in minimal_halfspaces:
         sample_vertex = get_vertex_on_facet(Z, H)
         if sample_vertex is None:
             raise GeometryError(

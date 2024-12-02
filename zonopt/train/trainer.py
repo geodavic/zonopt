@@ -17,9 +17,11 @@ class ZonotopeTrainer:
         start: Zonotope = None,
         seed: int = None,
         warmstart: bool = False,
+        random_start_kwargs = None
     ):
         self.target_polytope = target_polytope
         self.seed = seed or np.random.randint(2**32)
+        self.random_start_kwargs = random_start_kwargs or {}
         print(self.seed)
         self.warmstart = warmstart
         self.optimizer = optimizer
@@ -35,11 +37,12 @@ class ZonotopeTrainer:
         self.optimizer.zonotope = start.copy()
 
     def _initialize_zonotope(self, rank: int, dimension: int):
+        self.random_start_kwargs["seed"] = self.seed
+        start = Zonotope.random(rank, dimension, **self.random_start_kwargs)
         if self.warmstart:
-            raise GeorgePleaseImplement("warmstarting")
-
-        # TODO: add seed, scale, positive, random_translation options here
-        return Zonotope.random(rank, dimension, seed=self.seed)
+            offset = start.barycenter - self.target_polytope.barycenter
+            start.translation = start.translation - offset
+        return start
 
     def _single_train_step(self, target_points: np.ndarray, control_points: np.ndarray):
         gradients_data = []
@@ -64,16 +67,22 @@ class ZonotopeTrainer:
             return np.zeros_like(t.detach().numpy())
         return t.grad.detach().numpy()
 
-    def train(self, num_steps: int):
+    def train(self, num_steps: int, save_intermediate: bool=False):
         """
         Main training loop.
         TODO: Add more kwargs
         """
         pbar = tqdm(range(num_steps))
+        zonotopes = []
         for step in pbar:
             distance, target_points, control_points = hausdorff_distance(
                 self.target_polytope, self.optimizer.zonotope
             )
             self._single_train_step(target_points, control_points)
             pbar.set_description(f"d = {distance:10.10f}")
+            if save_intermediate:
+                zonotopes.append(self.optimizer.zonotope.copy())
+
+        if zonotopes:
+            return zonotopes
         return self.optimizer.zonotope

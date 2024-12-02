@@ -132,4 +132,5 @@ class Plotter:
         if self.verbose:
             print(f"Saved as {filename}")
         self.fig.clf()
+        plt.close()
         self._setup()
