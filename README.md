@@ -4,6 +4,8 @@
 
 A `pytorch` implementation of the results from [On Finding the Closest Zonotope to a Polytope in Hausdorff Distance](https://arxiv.org/abs/2407.13125)
 
+![Example][img/example.gif]
+
 ## Installation
 
 Using poetry:
