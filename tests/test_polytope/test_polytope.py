@@ -72,3 +72,21 @@ class TestPolytope(unittest.TestCase):
         for i in range(1,self.P4.dimension):
             x = [0.5]*i + [0]*(self.P4.dimension-i)
             self.assertEqual(self.P4.face_dimension(x), i)
+
+    def test_face_dimension_edge_midpoint(self):
+        # Regression: the midpoint of an edge of a zonotope whose endpoints are
+        # not exactly antipodal after rounding used to be reported as rank 2.
+        from zonopt.polytope import Zonotope
+
+        Z = Zonotope(
+            generators=np.array(
+                [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0]]
+            )
+            + np.array([[0.1, 0.4], [-0.2, 0.3], [0.35, -0.1], [0.07, 0.2]]),
+            translation=np.array([0.3, 0.1]),
+        )
+        for H in Z.halfspaces:
+            ends = [v for v in Z.vertices if H.boundary.contains(v)]
+            self.assertEqual(len(ends), 2)
+            self.assertEqual(Z.face_dimension((ends[0] + ends[1]) / 2), 1)
+            self.assertEqual(Z.face_dimension(0.3 * ends[0] + 0.7 * ends[1]), 1)

@@ -4,6 +4,7 @@ from scipy.spatial import ConvexHull
 from zonopt.polytope.comparisons import almost_equal
 from zonopt.polytope.utils import is_centrally_symmetric, express_point_as_convex_sum
 from zonopt.polytope.exceptions import GeometryError
+from zonopt.config import global_config as config
 
 
 class Hyperplane:
@@ -188,7 +189,12 @@ class Polytope:
 
         barycenter = sum(active_vertices) / len(active_vertices)
 
-        # Translate to barycenter so that span of active vertices is a subspace
-        active_vertices_translated = [v - barycenter for v in active_vertices]
-        
-        return np.linalg.matrix_rank(active_vertices_translated)
+        # Translate to barycenter so that span of active vertices is a subspace.
+        # Use an explicit tolerance: numpy's default is of order machine epsilon,
+        # which rounding in `v - barycenter` can exceed (e.g. two antipodal
+        # points of an edge coming out as rank 2).
+        active_vertices_translated = np.array([v - barycenter for v in active_vertices])
+
+        return np.linalg.matrix_rank(
+            active_vertices_translated, tol=config.comparison_epsilon
+        )

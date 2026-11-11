@@ -1,6 +1,11 @@
 from zonopt.polytope import Polytope, Zonotope
 from zonopt.polytope.zonotope import express_as_subset_sum
-from zonopt.train.loss import get_facet_normal, get_vertex_on_facet, hausdorff_loss
+from zonopt.train.loss import (
+    get_facet_normal,
+    get_vertex_on_facet,
+    hausdorff_loss,
+    hausdorff_loss_hyperplane,
+)
 from zonopt.metrics import hausdorff_distance, distance_to_polytope
 import torch
 import numpy as np
@@ -177,4 +182,47 @@ class TestHausdorffLoss(unittest.TestCase):
                     self.assertAlmostEqual(fd, grad_mu[j], places=6, msg=str(key))
 
         # Make sure we actually exercised faces of codimension >= 2
+        self.assertTrue(any(d - f >= 2 and f > 0 for d, _, f in seen))
+
+    def test_hyperplane_loss_matches_lift_loss(self):
+        """
+        The determinant/hyperplane formulation (paper's route, with the Gram
+        matrix correction) must agree with the lift formulation in value and
+        gradient, in every face configuration encountered.
+        """
+        seen = set()
+        for dimension, rank in [(2, 4), (3, 5), (4, 6)]:
+            for seed in range(30):
+                P = Polytope.random(12, dimension, seed=seed)
+                Zn = Zonotope.random(
+                    rank, dimension, seed=seed, random_translation=True, positive=False
+                )
+                dist, pp, qq = hausdorff_distance(P, Zn)
+                p, q = pp[0], qq[0]
+                typeI = Zn.has_vertex(q)
+                face_dim = P.face_dimension(p) if typeI else Zn.face_dimension(q)
+                key = (dimension, typeI, face_dim)
+                if key in seen:
+                    continue
+                seen.add(key)
+
+                results = []
+                for fn in (hausdorff_loss, hausdorff_loss_hyperplane):
+                    Zt = Zn.copy(cast_to_torch=True, requires_grad=True)
+                    loss = fn(Zt, P, q, p)
+                    loss.backward()
+                    results.append(
+                        (
+                            loss.item(),
+                            Zt.generators.grad.numpy().copy(),
+                            Zt.translation.grad.numpy().copy(),
+                        )
+                    )
+                (l1, g1, m1), (l2, g2, m2) = results
+                np.testing.assert_almost_equal(l1, dist, err_msg=str(key))
+                np.testing.assert_almost_equal(l2, dist, err_msg=str(key))
+                np.testing.assert_almost_equal(g1, g2, decimal=8, err_msg=str(key))
+                np.testing.assert_almost_equal(m1, m2, decimal=8, err_msg=str(key))
+
+        # Faces of codimension >= 2 (where the Gram matrix matters) were exercised
         self.assertTrue(any(d - f >= 2 and f > 0 for d, _, f in seen))
