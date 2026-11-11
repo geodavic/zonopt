@@ -2,10 +2,11 @@ import numpy as np
 from typing import Union, List, Any
 import torch
 import warnings
+from itertools import combinations
 from scipy.spatial import ConvexHull
 from scipy.optimize import lsq_linear
 from zonopt.polytope import Polytope
-from zonopt.polytope.utils import hull_from_affine, translate_points
+from zonopt.polytope.utils import hull_from_affine, translate_points, binary_lists
 from zonopt.polytope.comparisons import almost_equal
 from zonopt.polytope.exceptions import GeometryError
 from zonopt import global_config as config
@@ -35,9 +36,68 @@ class Zonotope(Polytope):
         self._is_torch = False
         self._generators = self.validate_generators(generators)
         self._translation = self.validate_translation(translation)
+        self._invalidate_geometry()
 
-        hull = hull_from_affine(self.generators, self.translation)
-        super().__init__(hull=hull)
+    # ------------------------------------------------------------------
+    # Geometry (vertices and facets), computed lazily and cached.
+    # ------------------------------------------------------------------
+
+    def _invalidate_geometry(self):
+        self._vertices_cache = None
+        self._equations_cache = None
+        self._general_position = None
+
+    def _numpy_parameters(self):
+        if self.is_torch:
+            return (
+                self.generators.detach().numpy().astype(np.float64),
+                self.translation.detach().numpy().astype(np.float64),
+            )
+        return self.generators, self.translation
+
+    def _ensure_geometry(self):
+        if self._vertices_cache is None:
+            generators, translation = self._numpy_parameters()
+            V, E, gp = zonotope_geometry(generators, translation)
+            self._vertices_cache = V
+            self._equations_cache = E
+            self._general_position = gp
+
+    @property
+    def points(self):
+        return self.vertices
+
+    @property
+    def vertices(self):
+        self._ensure_geometry()
+        return self._vertices_cache
+
+    @property
+    def equations(self):
+        self._ensure_geometry()
+        return self._equations_cache
+
+    @property
+    def is_general_position(self):
+        """
+        Whether the generators were found to be in general position by the
+        facet enumeration (every d-1 of them independent and no further
+        generator parallel to a facet).
+        """
+        self._ensure_geometry()
+        return self._general_position
+
+    @property
+    def dimension(self):
+        return int(self.generators.shape[1])
+
+    @property
+    def barycenter(self):
+        generators, translation = self._numpy_parameters()
+        return translation + 0.5 * generators.sum(axis=0)
+
+    def __mul__(self, alpha):
+        return self.__class__(alpha * self.generators, alpha * self.translation)
 
     def validate_generators(self, generators: Any):
         validationError = ValueError(f"Must pass type `{GeneratorType}` for generators")
@@ -101,12 +161,12 @@ class Zonotope(Polytope):
     @generators.setter
     def generators(self, new_generators: GeneratorType):
         self._generators = self.validate_generators(new_generators)
-        self._hull = hull_from_affine(new_generators, self.translation)
+        self._invalidate_geometry()
 
     @translation.setter
     def translation(self, new_translation: TranslationType):
         self._translation = self.validate_translation(new_translation)
-        self._hull = hull_from_affine(self.generators, self._translation)
+        self._invalidate_geometry()
 
     @property
     def rank(self):
@@ -129,7 +189,12 @@ class Zonotope(Polytope):
         else:
             translation_c = np.copy(self.translation)
 
-        return self.__class__(generators_c, translation_c)
+        new = self.__class__(generators_c, translation_c)
+        # Same geometry: share the cached vertices and facets rather than recomputing.
+        new._vertices_cache = self._vertices_cache
+        new._equations_cache = self._equations_cache
+        new._general_position = self._general_position
+        return new
 
     def lift(self, x: np.ndarray, tol: float = 1e-6):
         """
@@ -279,3 +344,143 @@ def _express_as_subset_sum(
         return True, subset + [_prev]
     else:
         return _express_as_subset_sum(x, generators[1:], base, _prev=_prev + 1)
+
+
+def _unique_rows(E: np.ndarray):
+    """
+    Unique rows of a boolean matrix. Rows are packed into integers so that the
+    deduplication is a 1-d unique, which is far faster than np.unique(axis=0).
+    """
+    n = E.shape[1]
+    if n > 62:
+        return np.unique(E, axis=0)
+    codes = E.astype(np.int64) @ (np.int64(1) << np.arange(n, dtype=np.int64))
+    _, index = np.unique(codes, return_index=True)
+    # Rows come back ordered by code, i.e. by cube coordinates, so the origin
+    # vertex (if present) is first and the all-generators vertex is last.
+    return E[index]
+
+
+def zonotope_geometry(generators: np.ndarray, translation: np.ndarray, tol: float = None):
+    """
+    Vertices and facet inequalities of the zonotope Z = { Q^T e + mu : e in [0,1]^n }
+    without enumerating the 2^n cubical vertices.
+
+    Every facet of a zonotope is a translate of the zonotope spanned by the
+    generators parallel to it. In general position those are exactly d-1
+    generators S, the facet normal w is the null vector of Q_S (computed here
+    from the (d-1)x(d-1) minors, w_j = (-1)^j det(Q_S without column j)), and
+    the two facets with normals +w and -w have vertices
+
+        mu + sum_{<g_i, w> > 0} g_i + (subset sum of S)   and
+        mu + sum_{<g_i, w> < 0} g_i + (subset sum of S).
+
+    Every vertex lies on a facet, so the union over all (d-1)-subsets is the
+    vertex set. Cost is O(C(n, d-1) 2^(d-1)) instead of O(2^n).
+
+    If the generators are not in general position (some d-1 of them dependent,
+    or a further generator parallel to a facet), the candidate points above
+    may include non-vertices and miss vertices on facets with more than d-1
+    parallel generators, so we fall back to a convex hull of an enlarged
+    candidate set.
+
+    Returns
+    -------
+    vertices: np.ndarray
+        Vertices of Z, ordered by their cube coordinates (the translation
+        vertex first, the sum of all generators last, when these are
+        vertices). In dimension 2 they are instead in counterclockwise order.
+    equations: np.ndarray
+        Rows [a, -c] with a a unit outward normal and a . x - c <= 0 on Z.
+    general_position: bool
+    """
+    if tol is None:
+        tol = config.comparison_epsilon
+    generators = np.asarray(generators, dtype=np.float64)
+    translation = np.asarray(translation, dtype=np.float64)
+    n, d = generators.shape
+
+    if d < 2 or n < d - 1:
+        hull = hull_from_affine(generators, translation)
+        return (
+            hull.points[hull.vertices],
+            np.unique(hull.equations, axis=0),
+            False,
+        )
+
+    subsets = np.array(list(combinations(range(n), d - 1)), dtype=int).reshape(
+        -1, d - 1
+    )
+    Q_S = generators[subsets]  # (C, d-1, d)
+
+    # Facet normals from the minors of Q_S (cf. Proposition grad2 of the paper).
+    W = np.empty((len(subsets), d))
+    for j in range(d):
+        cols = [k for k in range(d) if k != j]
+        W[:, j] = (-1) ** j * np.linalg.det(Q_S[:, :, cols])
+    norms = np.linalg.norm(W, axis=1)
+    scale = np.max(np.linalg.norm(generators, axis=1)) ** (d - 1)
+    independent = norms > tol * max(scale, 1e-300)
+    if not independent.any():
+        raise GeometryError("Zonotope is not full dimensional.")
+    general_position = bool(independent.all())
+    W = W[independent] / norms[independent, None]
+    subsets = subsets[independent]
+    C = len(subsets)
+
+    dots = W @ generators.T  # (C, n)
+    in_S = np.zeros((C, n), dtype=bool)
+    in_S[np.arange(C)[:, None], subsets] = True
+    positive = (dots > tol) & ~in_S
+    negative = (dots < -tol) & ~in_S
+    parallel = ~positive & ~negative & ~in_S
+    general_position = general_position and not parallel.any()
+
+    # Cube coordinates of the facet vertices: positive side, plus every subset of S.
+    patterns = np.array(binary_lists(d - 1), dtype=bool).reshape(-1, d - 1)
+    m = len(patterns)
+    facet_of_row = np.repeat(np.arange(C), m)  # which facet each candidate row belongs to
+    row_index = np.arange(C * m)[:, None]
+    columns = subsets[facet_of_row]  # generator indices of S for that facet
+    E_plus = np.repeat(positive, m, axis=0)
+    E_plus[row_index, columns] = np.tile(patterns, (C, 1))
+    E_minus = np.repeat(negative, m, axis=0)
+    E_minus[row_index, columns] = np.tile(patterns, (C, 1))
+    E = _unique_rows(np.vstack([E_plus, E_minus]))
+
+    if general_position:
+        vertices = E.astype(np.float64) @ generators + translation
+        base_plus = translation + positive.astype(np.float64) @ generators
+        base_minus = translation + negative.astype(np.float64) @ generators
+        c_plus = np.einsum("cd,cd->c", W, base_plus)
+        c_minus = np.einsum("cd,cd->c", -W, base_minus)
+        equations = np.vstack(
+            [
+                np.hstack([W, -c_plus[:, None]]),
+                np.hstack([-W, -c_minus[:, None]]),
+            ]
+        )
+    else:
+        # Enlarge the candidate set with all subset sums of S together with the
+        # generators parallel to the facet, then let Qhull pick out the vertices.
+        extra = []
+        for c in np.flatnonzero(parallel.any(axis=1)):
+            T = np.flatnonzero(in_S[c] | parallel[c])
+            pats = np.array(binary_lists(len(T)), dtype=bool).reshape(-1, len(T))
+            for base in (positive[c], negative[c]):
+                rows_T = np.repeat(base[None, :], len(pats), axis=0)
+                rows_T[:, T] = pats
+                extra.append(rows_T)
+        if extra:
+            E = _unique_rows(np.vstack([E] + extra))
+        candidates = E.astype(np.float64) @ generators + translation
+        hull = ConvexHull(candidates)
+        vertices = candidates[hull.vertices]
+        equations = np.unique(hull.equations, axis=0)
+
+    if d == 2:
+        center = translation + 0.5 * generators.sum(axis=0)
+        angles = np.arctan2(*(vertices - center).T[::-1])
+        vertices = vertices[np.argsort(angles)]
+
+    return vertices, equations, general_position

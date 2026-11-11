@@ -1,5 +1,6 @@
 from zonopt.polytope import Polytope, Zonotope, Hyperplane, Halfspace, Cube
-from zonopt.polytope.zonotope import express_as_subset_sum
+from zonopt.polytope.zonotope import express_as_subset_sum, zonotope_geometry
+from zonopt.polytope.utils import hull_from_affine
 from zonopt.polytope.exceptions import GeometryError
 import numpy as np
 import torch
@@ -100,3 +101,61 @@ class TestZonotope(unittest.TestCase):
             # Points outside raise
             with self.assertRaises(GeometryError):
                 Z.lift(Z.vertices[0] + 10 * np.ones(dimension))
+
+    def test_geometry_matches_brute_force(self):
+        """
+        Facet enumeration gives the same vertices and facets as the convex hull
+        of all 2^n cubical vertices.
+        """
+        def facet_set(equations):
+            return {tuple(np.round(e, 7)) for e in equations}
+
+        def vertex_set(vertices):
+            return {tuple(np.round(v, 9)) for v in vertices}
+
+        cases = [(2, 4), (2, 7), (3, 5), (3, 9), (4, 6), (4, 8), (5, 7)]
+        for dimension, rank in cases:
+            for seed in range(3):
+                Z = Zonotope.random(
+                    rank, dimension, seed=seed, positive=False, random_translation=True
+                )
+                hull = hull_from_affine(Z.generators, Z.translation)
+                self.assertTrue(Z.is_general_position)
+                self.assertEqual(
+                    vertex_set(Z.vertices), vertex_set(hull.points[hull.vertices])
+                )
+                self.assertEqual(
+                    facet_set(Z.equations), facet_set(np.unique(hull.equations, axis=0))
+                )
+
+        # Degenerate: fourth generator lies in the plane of the first two
+        G = np.array([[1.0, 0, 0], [0, 1, 0], [0, 0, 1], [1, 1, 0]])
+        Z = Zonotope(G)
+        hull = hull_from_affine(G, np.zeros(3))
+        self.assertFalse(Z.is_general_position)
+        self.assertEqual(vertex_set(Z.vertices), vertex_set(hull.points[hull.vertices]))
+        self.assertEqual(
+            facet_set(Z.equations), facet_set(np.unique(hull.equations, axis=0))
+        )
+
+        # Cube
+        self.assertEqual(len(self.C.vertices), 8)
+        self.assertEqual(len(self.C.equations), 6)
+
+    def test_vertices_counterclockwise_in_2d(self):
+        Z = Zonotope.random(6, 2, seed=4, positive=False)
+        V = Z.vertices - Z.barycenter
+        angles = np.arctan2(V[:, 1], V[:, 0])
+        self.assertTrue(np.all(np.diff(angles) > 0))
+
+    def test_geometry_cache_invalidated_on_update(self):
+        Z = Zonotope.random(5, 3, seed=2)
+        V0 = Z.vertices.copy()
+        Z.translation = Z.translation + 1.0
+        np.testing.assert_almost_equal(Z.vertices, V0 + 1.0)
+        Z.generators = 2 * Z.generators
+        self.assertEqual(len(Z.vertices), len(V0))
+        np.testing.assert_almost_equal(
+            Z.vertices.max(axis=0) - Z.vertices.min(axis=0),
+            2 * (V0.max(axis=0) - V0.min(axis=0)),
+        )

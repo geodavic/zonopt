@@ -70,7 +70,7 @@ class Halfspace:
 
 class Polytope:
     """
-    A polytope.
+    A polytope, stored by its vertices and its facet inequalities.
 
     Parameters
     ----------
@@ -90,9 +90,13 @@ class Polytope:
                 "Must specify either 'hull' or 'points' when initializing a Polytope."
             )
         if hull is None:
-            self._hull = ConvexHull(points)
-        else:
-            self._hull = hull
+            hull = ConvexHull(points)
+        self._set_from_hull(hull)
+
+    def _set_from_hull(self, hull: ConvexHull):
+        self._points = np.asarray(hull.points, dtype=np.float64)
+        self._vertices = self._points[hull.vertices]
+        self._equations = np.unique(hull.equations, axis=0)
 
     @classmethod
     def random(self, num_points: int, dimension: int, scale=1, seed: int = None):
@@ -108,16 +112,24 @@ class Polytope:
 
     @property
     def points(self):
-        return self._hull.points
+        return self._points
 
     @property
     def vertices(self):
-        return self.points[self._hull.vertices]
+        return self._vertices
+
+    @property
+    def equations(self):
+        """
+        Facet inequalities as an array with rows [a, -c], where a is a unit
+        outward normal and the facet inequality is a . x - c <= 0 (same
+        convention as scipy.spatial.ConvexHull.equations).
+        """
+        return self._equations
 
     @property
     def halfspaces(self):
-        inequalities = [e for e in np.unique(self._hull.equations, axis=0)]
-        return [Halfspace(eq[:-1], -eq[-1]) for eq in inequalities]
+        return [Halfspace(eq[:-1], -eq[-1]) for eq in self.equations]
 
     def __mul__(self, alpha):
         """
@@ -136,7 +148,7 @@ class Polytope:
 
     @property
     def dimension(self):
-        return len(self.points[0])
+        return self.vertices.shape[1]
 
     @property
     def barycenter(self):
@@ -152,26 +164,30 @@ class Polytope:
         """
         Return true if x is (almost) a vertex of P.
         """
-        return any([almost_equal(np.linalg.norm(x - v), 0) for v in self.vertices])
+        x = np.asarray(x, dtype=np.float64)
+        distances = np.linalg.norm(self.vertices - x, axis=1)
+        return bool(np.any(distances < config.comparison_epsilon))
+
+    def _facet_values(self, x: np.ndarray):
+        """
+        The values a_i . x - c_i for every facet inequality; negative inside,
+        zero on the facet, positive outside.
+        """
+        x = np.asarray(x, dtype=np.float64)
+        return self.equations[:, :-1] @ x + self.equations[:, -1]
 
     def contains(self, p: np.ndarray):
         """
-        Determine if the polytope contains p
+        Determine if the polytope contains p (up to comparison_epsilon).
         """
-        for H in self.halfspaces:
-            if not H.contains(p):
-                return False
-        return True
+        return bool(np.all(self._facet_values(p) < config.comparison_epsilon))
 
     def supporting_halfspaces(self, x):
         """
         Return list of halfspaces whose boundary contains x
         """
-        halfspaces = []
-        for H in self.halfspaces:
-            if H.boundary.contains(x):
-                halfspaces.append(H)
-        return halfspaces
+        mask = np.abs(self._facet_values(x)) < config.comparison_epsilon
+        return [Halfspace(eq[:-1], -eq[-1]) for eq in self.equations[mask]]
 
     def face_dimension(self, x):
         """
@@ -181,20 +197,23 @@ class Polytope:
         if not self.contains(x):
             return -1
 
-        incident_h = self.supporting_halfspaces(x)
-        active_vertices = []
-        for v in self.vertices:
-            if all([H.boundary.contains(v) for H in incident_h]):
-                active_vertices.append(v)
+        incident = self.equations[
+            np.abs(self._facet_values(x)) < config.comparison_epsilon
+        ]
+        # Vertices lying on every incident facet are the vertices of the face
+        values = self.vertices @ incident[:, :-1].T + incident[:, -1]
+        active_vertices = self.vertices[
+            np.all(np.abs(values) < config.comparison_epsilon, axis=1)
+        ]
 
-        barycenter = sum(active_vertices) / len(active_vertices)
+        barycenter = active_vertices.mean(axis=0)
 
         # Translate to barycenter so that span of active vertices is a subspace.
         # Use an explicit tolerance: numpy's default is of order machine epsilon,
         # which rounding in `v - barycenter` can exceed (e.g. two antipodal
         # points of an edge coming out as rank 2).
-        active_vertices_translated = np.array([v - barycenter for v in active_vertices])
-
-        return np.linalg.matrix_rank(
-            active_vertices_translated, tol=config.comparison_epsilon
+        return int(
+            np.linalg.matrix_rank(
+                active_vertices - barycenter, tol=config.comparison_epsilon
+            )
         )
