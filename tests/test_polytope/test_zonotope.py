@@ -1,5 +1,6 @@
 from zonopt.polytope import Polytope, Zonotope, Hyperplane, Halfspace, Cube
 from zonopt.polytope.zonotope import express_as_subset_sum
+from zonopt.polytope.exceptions import GeometryError
 import numpy as np
 import torch
 import unittest
@@ -76,3 +77,26 @@ class TestZonotope(unittest.TestCase):
         for v in Z.vertices:
             is_sum, _ = express_as_subset_sum(v, Z)
             self.assertTrue(is_sum)
+
+    def test_lift(self):
+        for dimension, rank in [(2, 4), (3, 5), (4, 6)]:
+            Z = Zonotope.random(rank, dimension, seed=1, random_translation=True)
+            # Vertices lift to 0/1 vectors that match the subset sum
+            for v in Z.vertices:
+                epsilon = Z.lift(v)
+                _, coeffs = express_as_subset_sum(v, Z)
+                np.testing.assert_equal(epsilon, np.array(coeffs, dtype=np.float64))
+            # Midpoint of an edge lifts to a point with a single fractional coordinate
+            v0 = Z.vertices[0]
+            e0 = Z.lift(v0)
+            for i in range(rank):
+                e1 = e0.copy()
+                e1[i] = 1 - e1[i]
+                v1 = Z.generators.T @ e1 + Z.translation
+                if Z.has_vertex(v1):
+                    epsilon = Z.lift((v0 + v1) / 2)
+                    np.testing.assert_almost_equal(epsilon, (e0 + e1) / 2)
+                    break
+            # Points outside raise
+            with self.assertRaises(GeometryError):
+                Z.lift(Z.vertices[0] + 10 * np.ones(dimension))

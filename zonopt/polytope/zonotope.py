@@ -3,9 +3,12 @@ from typing import Union, List, Any
 import torch
 import warnings
 from scipy.spatial import ConvexHull
+from scipy.optimize import lsq_linear
 from zonopt.polytope import Polytope
 from zonopt.polytope.utils import hull_from_affine, translate_points
 from zonopt.polytope.comparisons import almost_equal
+from zonopt.polytope.exceptions import GeometryError
+from zonopt import global_config as config
 
 GeneratorType = Union[np.ndarray, torch.Tensor, List[List[float]]]
 TranslationType = Union[np.ndarray, torch.Tensor, List[float]]
@@ -127,6 +130,53 @@ class Zonotope(Polytope):
             translation_c = np.copy(self.translation)
 
         return self.__class__(generators_c, translation_c)
+
+    def lift(self, x: np.ndarray, tol: float = 1e-6):
+        """
+        Lift a point x of Z to the unit cube: find epsilon in [0,1]^rank with
+        Q^T epsilon + mu = x, where Q is the generator matrix and mu the
+        translation. If x lies on the boundary of a stable (e.g. general
+        position) zonotope, this point is unique. For x in the interior the
+        lift is not unique and one solution is returned.
+
+        Solved as a bounded least squares problem. Raises GeometryError if
+        the residual exceeds `tol`, i.e. x is not (numerically) in Z.
+
+        Parameters
+        ----------
+        x: np.ndarray
+            A point in Z.
+        tol: float
+            Maximum allowed residual ||Q^T epsilon + mu - x||.
+
+        Returns
+        -------
+        epsilon: np.ndarray
+            Coordinates in the unit cube, with entries within
+            `comparison_epsilon` of 0 or 1 snapped to those values.
+        """
+        if self.is_torch:
+            generators = self.generators.detach().numpy()
+            translation = self.translation.detach().numpy()
+        else:
+            generators = self.generators
+            translation = self.translation
+        x = np.asarray(x, dtype=np.float64)
+
+        result = lsq_linear(
+            generators.T, x - translation, bounds=(0, 1), method="bvls", tol=1e-14
+        )
+        epsilon = result.x
+        residual = np.linalg.norm(generators.T @ epsilon + translation - x)
+        if residual > tol:
+            raise GeometryError(
+                f"Point {x} is not in the zonotope (lift residual {residual:.2e})."
+            )
+
+        snap = config.comparison_epsilon
+        epsilon[np.abs(epsilon) < snap] = 0.0
+        epsilon[np.abs(epsilon - 1) < snap] = 1.0
+        return epsilon
 
     @classmethod
     def random(

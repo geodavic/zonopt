@@ -39,11 +39,12 @@ def _distance_to_polytope_l2(x: np.array, P: Polytope):
         x = np.array(x, np.float64)
 
     if P.contains(x):
+        # `contains` is tolerance based while the LP below is exact, so a point
+        # just outside P can pass the first check and fail the second. In that
+        # case fall through to the quadratic program rather than failing.
         coeffs = express_point_as_convex_sum(x, P.vertices)
         if coeffs is not None:
             return 0, x, coeffs
-        else:
-            raise HausdorffError("Linear program for l2 distance did not succeed.")
 
     P_vertices = P.vertices
 

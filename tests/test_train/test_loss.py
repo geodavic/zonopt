@@ -1,7 +1,7 @@
 from zonopt.polytope import Polytope, Zonotope
 from zonopt.polytope.zonotope import express_as_subset_sum
 from zonopt.train.loss import get_facet_normal, get_vertex_on_facet, hausdorff_loss
-from zonopt.metrics import hausdorff_distance
+from zonopt.metrics import hausdorff_distance, distance_to_polytope
 import torch
 import numpy as np
 import unittest
@@ -115,13 +115,66 @@ class TestHausdorffLoss(unittest.TestCase):
             np.testing.assert_almost_equal(loss_gradient, target_gradient.item())
 
     def test_loss_matches_higher_dimension(self):
-        # Re-enable this once higher dimension loss is fixed
-        return
+        for dimension, rank, seed in [(3, 5, 2), (3, 6, 3), (4, 6, 2), (4, 6, 5)]:
+            P = Polytope.random(10, dimension, seed=seed)
+            Z = Zonotope.random(
+                rank, dimension, use_torch=True, random_translation=True, seed=seed
+            )
 
-        P = Polytope.random(10, 4, seed=2)
-        Z = Zonotope.random(6, 4, use_torch=True, requires_grad=False, seed=2)
+            haus_dist, pp, qq = hausdorff_distance(P, Z)
+            loss = hausdorff_loss(Z, P, qq[0], pp[0])
 
-        haus_dist, pp, qq = hausdorff_distance(P, Z)
-        loss = hausdorff_loss(Z, P, qq[0], pp[0])
+            np.testing.assert_almost_equal(haus_dist, loss.item())
 
-        np.testing.assert_almost_equal(haus_dist, loss.item())
+    def test_grad_matches_finite_differences(self):
+        """
+        Check the autograd gradient of the loss against central finite
+        differences of the true term (distance from the pushed-forward vertex
+        of Z to P, or distance from the vertex of P to the perturbed Z) in
+        dimensions 3 and 4, over several face configurations.
+        """
+        h = 1e-6
+        seen = set()
+        for dimension, rank in [(3, 5), (4, 6)]:
+            for seed in range(25):
+                P = Polytope.random(12, dimension, seed=seed)
+                Zn = Zonotope.random(
+                    rank, dimension, seed=seed, random_translation=True, positive=False
+                )
+                _, pp, qq = hausdorff_distance(P, Zn)
+                p, q = pp[0], qq[0]
+                typeI = Zn.has_vertex(q)
+                face_dim = P.face_dimension(p) if typeI else Zn.face_dimension(q)
+                key = (dimension, typeI, face_dim)
+                if key in seen:
+                    continue
+                seen.add(key)
+
+                Zt = Zn.copy(cast_to_torch=True, requires_grad=True)
+                loss = hausdorff_loss(Zt, P, q, p)
+                loss.backward()
+                grad_G = Zt.generators.grad.numpy()
+                grad_mu = Zt.translation.grad.numpy()
+
+                G, mu = Zn.generators, Zn.translation
+                epsilon = Zn.lift(q)
+
+                def term(G2, mu2):
+                    if typeI:
+                        return distance_to_polytope(G2.T @ epsilon + mu2, P)[0]
+                    return distance_to_polytope(p, Zonotope(G2, mu2))[0]
+
+                for i in range(rank):
+                    for j in range(dimension):
+                        E = np.zeros_like(G)
+                        E[i, j] = h
+                        fd = (term(G + E, mu) - term(G - E, mu)) / (2 * h)
+                        self.assertAlmostEqual(fd, grad_G[i, j], places=6, msg=str(key))
+                for j in range(dimension):
+                    E = np.zeros_like(mu)
+                    E[j] = h
+                    fd = (term(G, mu + E) - term(G, mu - E)) / (2 * h)
+                    self.assertAlmostEqual(fd, grad_mu[j], places=6, msg=str(key))
+
+        # Make sure we actually exercised faces of codimension >= 2
+        self.assertTrue(any(d - f >= 2 and f > 0 for d, _, f in seen))

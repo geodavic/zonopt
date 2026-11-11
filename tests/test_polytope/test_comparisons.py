@@ -6,7 +6,12 @@ import unittest
 
 class TestComparisons(unittest.TestCase):
     def setUp(self):
+        self._old_epsilon = global_config.comparison_epsilon
         global_config.comparison_epsilon = 0.01
+
+    def tearDown(self):
+        # Restore so that later tests use the default tolerance
+        global_config.comparison_epsilon = self._old_epsilon
 
     def test_int(self):
         a, b = 1, 2

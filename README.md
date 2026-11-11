@@ -79,4 +79,4 @@ This computation solves a quadratic program using the [qpsolvers](http://github.
 
 As shown in the Quickstart, we formulate the optimization of the hausdorff distance between a polytope `P` and a zonotope `Z` in the language of a `pytorch` training algorithm. 
 
-**Disclaimer:** Currently `zonopt` cannot optimize in dimensions greater than 2 due to a bug that is still being resolved. For more details, see [this](https://github.com/geodavic/zonopt/issues/1) issue. We are working to resolve this bug quickly and apologize for any inconvenience.
+Optimization works in any ambient dimension. The loss used for the subgradient step is the distance between the vertex of `P` (resp. the pushed-forward vertex of `Z`) and the point of `Z` (resp. `P`) achieving the Hausdorff distance, with the latter expressed through its lift to the unit cube (see `zonopt/train/loss.py`). Note that the convex hull of a rank `n` zonotope is currently computed from all `2^n` cubical vertices, so very high ranks are slow.
